@@ -1,5 +1,5 @@
 /* =========================================================
-   G.R.A.C.E 全平台總覽 v6｜簡化版
+   @grace.wwwwwwww資源平台 v6｜簡化版
    首頁：版頭＋「現在」凹槽＋六顆入口鍵＋頁尾一行
    點開：底部卡片（手機）／中央浮動卡（電腦）＝流程軌道＋一顆主按鈕
    沿用 site.css 的霧面／黑曜石語彙，只新增本檔元件
@@ -14,7 +14,7 @@
 /* ---------- 版面 ---------- */
 .page.v6{max-width:560px;padding-top:max(26px, env(safe-area-inset-top, 0px));padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));
   min-height:100svh;display:flex;flex-direction:column;gap:20px}
-.v6 .mast{padding:0}
+.v6 .mast{padding:0 0 6px}
 .v6 .mast-h{flex-direction:column;align-items:center;gap:8px}
 .v6 .mast .logo{width:150px}
 .v6 .mast .cap{font-size:12.5px;letter-spacing:.26em}
