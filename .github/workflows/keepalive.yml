@@ -1,0 +1,48 @@
+name: 排程保持啟用
+
+# 公開 repo 連續 60 天沒有 commit 時，GitHub 會自動停用排程。
+# 每週檢查一次：最後一次 commit 超過 50 天，就推一個空 commit 讓排程保持啟用。
+on:
+  schedule:
+    # 每週一 UTC 01:23 = 台北時間 09:23
+    - cron: '23 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 與 live.yml、podcast.yml 共用同一組，避免同時 push 造成衝突
+concurrency:
+  group: grace-ig-data-update
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 超過 50 天沒有 commit 時推送空 commit
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          days=$(( (now - last) / 86400 ))
+          echo "距離最後一次 commit：${days} 天"
+          if [ "$days" -le 50 ]; then
+            echo "未超過 50 天，不需處理。"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "keepalive"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            echo "push 失敗，第 ${i} 次重試…"
+            sleep $((i * 5))
+          done
+          echo "::error::keepalive push 失敗（已重試 3 次）"
+          exit 1
