@@ -3,7 +3,7 @@
 const ALLOW = ['https://grace63188.github.io', 'http://localhost:8080', 'http://127.0.0.1:8080'];
 export async function onRequestGet({ request }) {
   const origin = request.headers.get('Origin') || '';
-  const allow = ALLOW.includes(origin) || /^https:\/\/[a-z0-9-]+\.grace-hub\.pages\.dev$/.test(origin) ? origin : ALLOW[0];
+  const allow = ALLOW.includes(origin) || /^https:\/\/([a-z0-9-]+\.)?grace-hub-d8l\.pages\.dev$/.test(origin) ? origin : ALLOW[0];
   const ip = request.headers.get('CF-Connecting-IP') || '';
   return new Response(JSON.stringify({ ip }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': allow, 'Vary': 'Origin' } });
 }
