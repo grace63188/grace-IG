@@ -525,13 +525,15 @@ window.HUB_BM_SRC="(function(){\nconst subtle = globalThis.crypto.subtle;\nconst
     try { var html = await view(r.arg); if (route().v !== r.v || route().arg !== r.arg) return; main.innerHTML = '<div class="page">' + html + '</div>'; view.after && view.after(main, r.arg); }
     catch (e) { if (e.code === 'UNAUTHORIZED') { AT = ''; store.del('gh.at'); toast('登入已失效，請重新登入', true); render(); return; } main.innerHTML = '<div class="page"><div class="pn"><div class="empty"><b>讀取失敗</b>' + esc(e.msg || e.message || e) + '</div></div></div>'; }
   }
+  var FRONT = 'https://grace63188.github.io/grace-IG/';
+  function frontLink(cls) { return '<a class="front btn-s gl gl-clear ' + cls + '" href="' + FRONT + '" target="_blank" rel="noopener" aria-label="查看前台（另開新分頁）">' + ic('i-ext') + '<span>查看前台</span></a>'; }
   var NAV = [['overview', '總覽', 'i-home'], ['list', '名單', 'i-people'], ['repeat', '重複點擊', 'i-repeat'], ['tools', '工具設定', 'i-gear']];
   function shell(cur) {
     var ls = state.me && state.me.lastSync;
     return '<div class="shell"><aside class="side"><div class="brandmark"><img src="' + IMG.mark + '" alt=""><span><b>總覽後台</b><small>G.R.A.C.E 全平台</small></span></div>' +
       '<nav class="nav-ad" aria-label="後台">' + NAV.map(function (n) { return '<a href="#/' + n[0] + '" data-nav="' + n[0] + '" ' + (n[0] === cur ? 'aria-current="page"' : '') + '>' + ic(n[2]) + n[1] + '</a>'; }).join('') + '</nav>' +
-      '<div class="side-foot"><span><i class="dotok"></i>資料中心' + (MOCK ? '（預覽假資料）' : '連線正常') + '</span><span data-sync>' + syncFoot(ls) + '</span><a class="back" href="#" data-act="logout" style="color:var(--ink-3)">登出這台裝置</a></div></aside>' +
-      '<header class="mbar"><img src="' + IMG.mark + '" alt=""><b>總覽後台</b><span class="sp"></span><span class="fresh" style="width:auto"><i class="dotok"></i>' + fHM(Date.now()) + '</span></header>' +
+      frontLink('front-side') + '<div class="side-foot"><span><i class="dotok"></i>資料中心' + (MOCK ? '（預覽假資料）' : '連線正常') + '</span><span data-sync>' + syncFoot(ls) + '</span><a class="back" href="#" data-act="logout" style="color:var(--ink-3)">登出這台裝置</a></div></aside>' +
+      '<header class="mbar"><img src="' + IMG.mark + '" alt=""><b>總覽後台</b><span class="sp"></span>' + frontLink('front-m') + '<span class="fresh" style="width:auto"><i class="dotok"></i>' + fHM(Date.now()) + '</span></header>' +
       '<main class="main" id="main"></main>' +
       '<nav class="tabbar" aria-label="後台">' + NAV.map(function (n) { return '<a href="#/' + n[0] + '" data-nav="' + n[0] + '" ' + (n[0] === cur ? 'aria-current="page"' : '') + '>' + ic(n[2]) + n[1] + '</a>'; }).join('') + '</nav></div>';
   }
