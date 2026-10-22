@@ -192,13 +192,13 @@ function paintCampaign(t) {
 }
 
 /* ---------- 直播 ---------- */
+export const GCAL_TITLE = '校長IG直播';
+export const GCAL_IG = 'https://www.instagram.com/grace.wwwwwwww';
 export function gcalUrl(e) {
   const f = (t) => new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const title = (e.title && String(e.title).trim()) || 'G.R.A.C.E IG直播';
-  const url = safeUrl(e.url);
-  const q = ['action=TEMPLATE', `text=${encodeURIComponent(title)}`, `dates=${f(ts(e.start))}/${f(ts(e.end))}`,
-    `details=${encodeURIComponent(url ? `${title}\n直播連結：${url}` : `${title}\nG.R.A.C.E 全平台總覽`)}`,
-    url ? `location=${encodeURIComponent(url)}` : ''].filter(Boolean).join('&');
+  const q = ['action=TEMPLATE', `text=${encodeURIComponent(GCAL_TITLE)}`, `dates=${f(ts(e.start))}/${f(ts(e.end))}`,
+    `details=${encodeURIComponent(`不見不散，校長在等你🤍\n${GCAL_IG}`)}`,
+    `location=${encodeURIComponent(GCAL_IG)}`].join('&');
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 
@@ -230,7 +230,7 @@ function paintLive(t) {
   $('#lv-name').textContent = name;
   const w = $('#lv-when'); w.textContent = on ? 'LIVE' : fmtDate(s);
   const sp = document.createElement('span'); sp.textContent = on ? `至 ${fmtHM(ts(e.end))}` : fmtHM(s); w.append(sp);
-  const cal = $('#live-cal'); cal.href = gcalUrl(e); cal.setAttribute('aria-label', `加入行事曆：${name} ${fmtDate(s)} ${fmtHM(s)}`);
+  const cal = $('#live-cal'); cal.href = gcalUrl(e); cal.setAttribute('aria-label', `加入行事曆：${GCAL_TITLE} ${fmtDate(s)} ${fmtHM(s)}`);
   $('#lv-cal-li').hidden = on;
   $('#lv-flow').style.setProperty('--n', on ? '1' : '2');
   const more = up.slice(1, 3);
