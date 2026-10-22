@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js';
-import { initQuiz } from './quiz.js';
-import { initTickets } from './ticket.js';
-import { loadConfig } from './config.js';
-import { initSound, sfx } from './sound.js';
-import { initTracking, track } from './track.js';
-import { resume as resumeAuth } from './auth.js';
-import { initGate, errText } from './gate.js';
-import { initIntro } from './intro.js';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023a';
+import { initQuiz } from './quiz.js?v=20261023a';
+import { initTickets } from './ticket.js?v=20261023a';
+import { loadConfig } from './config.js?v=20261023a';
+import { initSound, sfx } from './sound.js?v=20261023a';
+import { initTracking, track } from './track.js?v=20261023a';
+import { resume as resumeAuth, takeGoLogin } from './auth.js?v=20261023a';
+import { initGate, errText } from './gate.js?v=20261023a';
+import { initIntro } from './intro.js?v=20261023a';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -318,6 +318,7 @@ async function start() {
     startQuiz: (k) => quiz.open(k, $('[data-open="quiz"].k'), { direct: true }),
   });
   initTickets({ open: (k) => gate.open(k) });
+  const go = takeGoLogin();                                             /* ?go=login：讀取後即清掉網址參數 */
   cfgP.then(async () => {
     initTracking();
     let ref = ''; try { ref = document.referrer ? new URL(document.referrer).host : ''; } catch (e) { /* 忽略 */ }
@@ -327,7 +328,7 @@ async function start() {
     if (r && r.kind) {
       if (r.session) { track('auth.success', 'auth', { provider: r.provider, kind: r.kind }); gate.go(r.kind, { fresh: true }); }
       else { track('auth.fail', 'auth', { provider: r.provider || 'line', kind: r.kind, code: r.error }); gate.open(r.kind, { msg: errText(r.error) }); }
-    }
+    } else if (go) gate.open(go.kind);                                  /* 從 App 內建瀏覽器換到瀏覽器：直接到登入卡 */
   });
   paintConsult(FB.consult);
   initTimed({ campaigns: FB.campaigns, live: FB.live });

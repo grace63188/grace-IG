@@ -97,14 +97,37 @@
 .cta.pending{opacity:1}
 .cta.pending .go svg{animation:go-wait 900ms var(--ease-move) infinite alternate}
 @keyframes go-wait{from{opacity:.35;transform:translateX(-2px)}to{opacity:1;transform:translateX(2px)}}
-.inapp{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px 0 6px}
+/* App 內建瀏覽器：主按鈕換到真正的瀏覽器；選單說明一直在下方；LINE／Google 為次要 */
+.inapp-open{display:flex;flex-direction:column;gap:8px}
+.cta-ext{text-decoration:none}
+.cta-ext .lead-ic{width:26px;height:26px;flex:none;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.cta-ext .lead-ic svg{width:16px;height:16px;stroke-width:1.9}
+.inapp-or{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--ink-3);letter-spacing:.12em;margin:2px 4px -2px}
+.inapp-or::before,.inapp-or::after{content:"";flex:1;height:1px;background:rgba(163,163,160,.45)}
+.auth-inapp .cta-sub.cta-line .lead-ic{background:none;box-shadow:none}
+.auth-inapp .cta-sub.cta-line .lead-ic svg{fill:var(--line-green)}
+.inapp{display:flex;flex-direction:column;gap:6px;padding:0 2px 0 6px;margin-top:-4px}
+.g-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .inapp small{font-size:12px;color:var(--ink-3);letter-spacing:.02em;line-height:1.45}
-.pill-s{position:relative;isolation:isolate;overflow:hidden;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;
+.g-steps{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:6px 10px 6px 14px;border-radius:14px;
+  transition-property:background-color,box-shadow,color;transition-duration:var(--t-ui);transition-timing-function:ease-out}
+.g-step{font-size:12.5px;color:var(--ink-3);letter-spacing:.02em;line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
+.g-art{flex:none;width:40px;height:32px;fill:var(--ink-3);stroke:var(--ink-3);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px;opacity:.85}
+.g-art .g-art-k{fill:none}
+.g-art circle{stroke:none}
+.g-art .g-art-a{fill:none;stroke-dasharray:2.4 2.6}
+.g-steps.hl{background:rgba(184,151,90,.1);box-shadow:inset 0 0 0 1px rgba(184,151,90,.45)}
+.g-steps.hl .g-step{color:var(--ink)}
+.g-steps.hl .g-art{fill:var(--champagne-ink);stroke:var(--champagne-ink);opacity:1;animation:g-nudge 700ms var(--ease-out) 2}
+@keyframes g-nudge{50%{transform:translate(2px,-3px)}}
+.g-try{align-self:flex-start;min-height:32px;padding:0;font-size:12px;color:var(--ink-3);letter-spacing:.04em;text-decoration:underline;text-decoration-color:rgba(84,84,82,.4);text-underline-offset:3px;background:none}
+.g-try:active{color:var(--ink)}
+.pill-s{position:relative;isolation:isolate;overflow:hidden;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;text-decoration:none;
   background:var(--matte);box-shadow:3px 3px 7px rgba(150,150,146,.5),-3px -3px 7px rgba(255,255,255,.9);
   transition-property:transform,box-shadow;transition-duration:var(--t-press);transition-timing-function:ease-out}
 .pill-s:active{transform:scale(.96);box-shadow:var(--matte-sink)}
 .pill-s svg{width:14px;height:14px;stroke-width:1.8}
-.inapp-tip{font-size:12.5px;color:var(--ink-2);line-height:1.65;letter-spacing:.02em;padding:10px 14px;border-radius:16px;box-shadow:var(--dn-sm)}
+@media (prefers-reduced-motion:reduce){ .g-steps.hl .g-art{animation:none} }
 .auth-msg{font-size:13px;font-weight:500;color:var(--err-ink);letter-spacing:.02em;text-align:center}
 .priv{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;color:var(--ink-3);letter-spacing:.03em;padding-top:2px;text-align:center}
 .priv svg{width:12px;height:12px;stroke-width:1.8}
@@ -181,9 +204,9 @@
   .who{max-width:calc(50vw - 44px);gap:6px;padding-right:10px}
   .who .src{display:none}
   .rite-tk .iss{display:none}
-  .inapp{flex-direction:column;align-items:stretch}
+  .g-row{flex-direction:column;align-items:stretch}
 }
-@media (forced-colors:active){ .who,.who-m-b,.pill-s,.rite-tk,.wb-last{border:1px solid CanvasText} }
+@media (forced-colors:active){ .who,.who-m-b,.pill-s,.rite-tk,.wb-last,.g-steps.hl{border:1px solid CanvasText} }
 
 /* Google 提示被略過時：官方按鈕（由 Google 繪製） */
 .gsi-slot{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 0 2px}

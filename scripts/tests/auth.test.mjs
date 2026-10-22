@@ -15,8 +15,10 @@ Object.defineProperty(globalThis, 'location', { configurable: true, get: () => (
 globalThis.history = { replaceState: (_s, _t, u) => { url = new URL(u, url); } };
 globalThis.fetch = async () => { throw new Error('offline'); };                 // hub.json 讀取失敗
 
-const { loadConfig, isDemo } = await import('../../assets/js/config.js');
-const { resume } = await import('../../assets/js/auth.js');
+/* 與網頁相同的版本參數匯入（模組網址不同會變成兩份模組，設定狀態不共用） */
+const V = HTML.match(/assets\/js\/v6\.js(\?v=\w+)/)[1];
+const { loadConfig, isDemo } = await import(`../../assets/js/config.js${V}`);
+const { resume, loginUrl, takeGoLogin } = await import(`../../assets/js/auth.js${V}`);
 const embedded = HTML.match(/id="hub-config">([\s\S]*?)<\/script>/)[1];
 
 test('hub.json 讀取失敗：內嵌設定仍為正式模式', async () => {
@@ -52,4 +54,18 @@ test('正式模式下 state 逾時：同樣回 error state', async () => {
   const r = await resume();
   assert.equal(r.error, 'state'); assert.equal(r.kind, 'career');
   assert.equal(store.has('gh.state'), false);
+});
+
+test('換到外部瀏覽器的網址：保留路徑與參數、加 go=login，並去掉登入返回參數', () => {
+  url = new URL('https://grace63188.github.io/grace-IG/?utm_source=ig&auth=line&code=x&state=y#top');
+  assert.equal(loginUrl('ability'), 'https://grace63188.github.io/grace-IG/?utm_source=ig&go=login');
+  assert.equal(loginUrl('career'), 'https://grace63188.github.io/grace-IG/?utm_source=ig&go=login&k=career');
+});
+
+test('?go=login：回傳測驗種類並清掉 go、k、openExternalBrowser', () => {
+  url = new URL('https://grace63188.github.io/grace-IG/?utm_source=ig&go=login&k=career&openExternalBrowser=1');
+  assert.deepEqual(takeGoLogin(), { kind: 'career' });
+  assert.equal(url.search, '?utm_source=ig');
+  url = new URL('https://grace63188.github.io/grace-IG/');
+  assert.equal(takeGoLogin(), null);
 });

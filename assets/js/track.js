@@ -7,8 +7,8 @@
      送出時只帶契約欄位；did／vt 放在請求外層。login_done／quiz_done 由資料中心自動補，前台只留本機紀錄（local）
    - 示範模式：只寫入本機佇列，不送出、不讀 IP，也不在主控台列印任何內容
    - 點擊自動收集：document 擷取階段監聽 [data-ev]；動態事件由各模組呼叫 track() */
-import { isDemo } from './config.js';
-import { post, beacon as sendBeacon, setIdentity, fetchIp } from './api.js';
+import { isDemo } from './config.js?v=20261023a';
+import { post, beacon as sendBeacon, setIdentity, fetchIp } from './api.js?v=20261023a';
 
 export const Q_KEY = 'gh.q';
 export const DID_KEY = 'gh.did';

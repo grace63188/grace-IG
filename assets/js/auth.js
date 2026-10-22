@@ -4,11 +4,12 @@
      若瀏覽器略過提示，於卡片內改放 Google 官方按鈕完成登入
    - 自動登入：載入時有 vt → op visitor.me 續期；EXPIRED／UNAUTHORIZED 清除，視為未登入
    - 保存：localStorage gh.vt、gh.person（try/catch）；示範模式以模擬帳號完成，不連線
-   - App 內建瀏覽器（Instagram、Threads、Facebook、LINE 等 WebView）：Google 會擋 WebView，改引導以外部瀏覽器開啟；LINE 登入照常可用
+   - App 內建瀏覽器（Instagram、Threads、Facebook、LINE 等 WebView）：Google 會擋 WebView；LINE 登入照常可用。
+     外部開啟（帶 ?go=login，重新開啟時直接到登入卡）：LINE 內建 openExternalBrowser=1、Android intent:// 交給 Chrome、iOS 17+ x-safari-https://，其餘只能靠 App 右上角選單
    - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state' */
-import { config } from './config.js';
-import { post } from './api.js';
-import { devInfo, setTokenSource, inAppOf } from './track.js';
+import { config } from './config.js?v=20261023a';
+import { post } from './api.js?v=20261023a';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023a';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';
@@ -75,35 +76,60 @@ export function inAppName() {
 export const isInApp = () => !!inAppName();
 export const platform = () => ({ iOS: 'ios', Android: 'android' }[devInfo().os] || 'other');
 
-async function copy(text) {
-  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch (e) { /* 改用後備 */ }
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-    document.body.append(ta); ta.select(); ta.setSelectionRange(0, text.length);
-    const ok = document.execCommand && document.execCommand('copy');
-    ta.remove();
-    return !!ok;
-  } catch (e) { return false; }
-}
 const pageUrl = () => location.href.split('#')[0];
-export const copyUrl = () => copy(pageUrl());
 
-/** 在外部瀏覽器開啟：Android 以 intent:// 交給 Chrome；iOS 與其他改為複製網址並提示 */
-export async function openInBrowser() {
-  const url = pageUrl(), os = platform();
-  /* LINE 內建瀏覽器支援 openExternalBrowser=1 直接改用預設瀏覽器開啟 */
-  if (inAppName() === 'LINE' && typeof window.__pvIG !== 'boolean') {
-    const u = new URL(url); u.searchParams.set('openExternalBrowser', '1');
-    location.href = u.toString();
-    return { mode: 'line', os, copied: false };
-  }
-  if (os === 'android' && typeof window.__pvIG !== 'boolean') {
-    const u = new URL(url);
-    location.href = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-    return { mode: 'intent', os, copied: false };
-  }
-  return { mode: 'copy', os, copied: await copy(url) };
+/** iOS 主版本（非 iOS 回 0）；x-safari-https:// 需 iOS 17 以上 */
+export function iosMajor(ua = navigator.userAgent || '') {
+  if (platform() !== 'ios') return 0;
+  const m = /(?:iPhone|CPU) OS (\d+)_/.exec(ua) || /Version\/(\d+)/.exec(ua);
+  return m ? Number(m[1]) : 0;
+}
+
+/** App 內建瀏覽器改用外部瀏覽器開啟本頁的方式：
+    line＝LINE 內建瀏覽器（openExternalBrowser=1，改用預設瀏覽器）；intent＝Android（intent:// 交給 Chrome）；
+    safari＝iOS 17 以上（x-safari-https://，不一定被 App 放行，需搭配選單指引）；''＝只能靠 App 右上角選單 */
+export function externalMode() {
+  if (typeof window.__pvIG === 'boolean') return '';                     /* 預覽：只顯示選單指引 */
+  if (inAppName() === 'LINE') return 'line';
+  const os = platform();
+  if (os === 'android') return 'intent';
+  if (os === 'ios' && iosMajor() >= 17) return 'safari';
+  return '';
+}
+/** 換到外部瀏覽器後要開的網址：保留目前路徑與參數，加 go=login（重新開啟時直接到登入卡；k＝測驗種類） */
+export function loginUrl(kind = 'ability') {
+  const u = new URL(pageUrl());
+  ['go', 'k', 'openExternalBrowser', 'auth', 'code', 'state', 'error', 'error_description', 'friendship_status_changed'].forEach((k) => u.searchParams.delete(k));
+  u.searchParams.set('go', 'login');
+  if (kind === 'career') u.searchParams.set('k', 'career');
+  return u.toString();
+}
+/** 對應方式的外部開啟網址 */
+export function externalUrl(mode = externalMode(), kind = 'ability') {
+  const url = loginUrl(kind), u = new URL(url);
+  if (mode === 'line') { u.searchParams.set('openExternalBrowser', '1'); return u.toString(); }
+  if (mode === 'intent') return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+  if (mode === 'safari') return `x-safari-${url}`;
+  return '';
+}
+/** 嘗試以外部瀏覽器開啟；回 { mode, os }（mode 為 '' 表示無可用方式） */
+export function openInBrowser(mode = externalMode(), kind = 'ability') {
+  const href = externalUrl(mode, kind);
+  if (href) location.href = href;
+  return { mode: href ? mode : '', os: platform() };
+}
+/** 載入時：網址帶 go=login → 回 { kind } 並清掉 go、k、openExternalBrowser；否則 null */
+export function takeGoLogin() {
+  let q;
+  try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (q.get('go') !== 'login') return null;
+  const kind = q.get('k') === 'career' ? 'career' : 'ability';
+  try {
+    ['go', 'k', 'openExternalBrowser'].forEach((k) => q.delete(k));
+    const qs = q.toString();
+    history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+  } catch (e) { /* 忽略 */ }
+  return { kind };
 }
 
 /* ---------- 登入 ---------- */

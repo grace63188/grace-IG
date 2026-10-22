@@ -32,13 +32,13 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&amp;family=Noto+Sans+TC:wght@300;400;500&amp;display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&amp;family=Noto+Sans+TC:wght@300;400;500&amp;display=swap"></noscript>
 <link rel="preload" as="image" href="assets/img/logo-engraved.webp" type="image/webp">
-<link rel="stylesheet" href="assets/css/site.css">
-<link rel="stylesheet" href="assets/css/v6.css">
-<link rel="stylesheet" href="assets/css/v7.css">
-<link rel="stylesheet" href="assets/css/intro.css">
-<!-- 開場模式：網址帶 ?intro=1 → full（強制重看）；本裝置看過（localStorage grace.intro.seen，存不了時看 sessionStorage）→ none（直接首頁）；從登入返回 → brief（Logo 短暫淡出）；其餘（第一次造訪）→ full。儲存空間讀取失敗一律視為沒看過。intro.js 未在 5 秒內載入時直接放行首頁 -->
-<script>(function(d){d.classList.add('js');var K='grace.intro.seen',q='',s=false,m='full';try{q=location.search}catch(e){}try{s=localStorage.getItem(K)==='1'}catch(e){}if(!s){try{s=sessionStorage.getItem(K)==='1'}catch(e){}}if(/[?&]intro=1(&|$)/.test(q))m='full';else if(s)m='none';else if(/[?&]auth=/.test(q))m='brief';d.setAttribute('data-intro',m);if(m==='none')return;d.classList.add('intro-'+m,'intro-hold');setTimeout(function(){if(!window.__introOk)d.classList.remove('intro-full','intro-brief','intro-hold')},5000)})(document.documentElement);</script>
-<script type="module" src="assets/js/v6.js"></script>
+<link rel="stylesheet" href="assets/css/site.css?v=20261023a">
+<link rel="stylesheet" href="assets/css/v6.css?v=20261023a">
+<link rel="stylesheet" href="assets/css/v7.css?v=20261023a">
+<link rel="stylesheet" href="assets/css/intro.css?v=20261023a">
+<!-- 開場模式：網址帶 ?go=login（從 App 內建瀏覽器換到瀏覽器）→ none 並記為看過，直接到登入卡；?intro=1 → full（強制重看）；本裝置看過（localStorage grace.intro.seen，存不了時看 sessionStorage）→ none（直接首頁）；從登入返回 → brief（Logo 短暫淡出）；其餘（第一次造訪）→ full。儲存空間讀取失敗一律視為沒看過。intro.js 未在 5 秒內載入時直接放行首頁 -->
+<script>(function(d){d.classList.add('js');var K='grace.intro.seen',q='',s=false,m='full';try{q=location.search}catch(e){}try{s=localStorage.getItem(K)==='1'}catch(e){}if(!s){try{s=sessionStorage.getItem(K)==='1'}catch(e){}}if(/[?&]go=login(&|$)/.test(q)){m='none';try{localStorage.setItem(K,'1')}catch(e){try{sessionStorage.setItem(K,'1')}catch(x){}}}else if(/[?&]intro=1(&|$)/.test(q))m='full';else if(s)m='none';else if(/[?&]auth=/.test(q))m='brief';d.setAttribute('data-intro',m);if(m==='none')return;d.classList.add('intro-'+m,'intro-hold');setTimeout(function(){if(!window.__introOk)d.classList.remove('intro-full','intro-brief','intro-hold')},5000)})(document.documentElement);</script>
+<script type="module" src="assets/js/v6.js?v=20261023a"></script>
 </head>
 <body>
 <!-- 開場儀式（intro.js）：霧面底＋Logo（光暈呼吸、光澤掃過）＋ENTER（文字＋箭頭＋髮絲線）；SKIP 在右上角

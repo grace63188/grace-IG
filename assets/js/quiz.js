@@ -6,14 +6,14 @@
    - 入口：撕票 →（未登入先在儀式卡登入，gate.js）→ 直接進第一題（未完成者接續）；第一題上方顯示一行作答提醒，不需點按
    - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝香檳鐘聲；事件：每題作答進度、完成與結果 */
-import { $, $$, reduced, setInert, esc } from './core.js';
-import { sfx } from './sound.js';
-import { track } from './track.js';
-import { submitResult, onResults, session } from './auth.js';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261023a';
+import { sfx } from './sound.js?v=20261023a';
+import { track } from './track.js?v=20261023a';
+import { submitResult, onResults, session } from './auth.js?v=20261023a';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js';
+} from './quizdata.js?v=20261023a';
 
 export const STORE_KEY = 'grace.quiz.v1';
 const SIGNIN = 'https://www.graceschool.com.tw/member/signin';
