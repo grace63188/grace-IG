@@ -18,7 +18,7 @@ globalThis.fetch = async () => { throw new Error('offline'); };                 
 /* 與網頁相同的版本參數匯入（模組網址不同會變成兩份模組，設定狀態不共用） */
 const V = HTML.match(/assets\/js\/v6\.js(\?v=\w+)/)[1];
 const { loadConfig, isDemo } = await import(`../../assets/js/config.js${V}`);
-const { resume, loginUrl, takeGoLogin } = await import(`../../assets/js/auth.js${V}`);
+const { resume, loginUrl, takeGoLogin, markLoginUrl, externalUrl } = await import(`../../assets/js/auth.js${V}`);
 const embedded = HTML.match(/id="hub-config">([\s\S]*?)<\/script>/)[1];
 
 test('hub.json 讀取失敗：內嵌設定仍為正式模式', async () => {
@@ -68,4 +68,19 @@ test('?go=login：回傳測驗種類並清掉 go、k、openExternalBrowser', () 
   assert.equal(url.search, '?utm_source=ig');
   url = new URL('https://grace63188.github.io/grace-IG/');
   assert.equal(takeGoLogin(), null);
+});
+
+test('App 內說明顯示時：網址改為登入網址，收起時還原', () => {
+  url = new URL('https://grace63188.github.io/grace-IG/?utm_source=ig#top');
+  const restore = markLoginUrl('career');
+  assert.equal(url.href, 'https://grace63188.github.io/grace-IG/?utm_source=ig&go=login&k=career#top');
+  restore();
+  assert.equal(url.href, 'https://grace63188.github.io/grace-IG/?utm_source=ig#top');
+});
+
+test('外部開啟網址：不再提供 x-safari；Android intent 附 fallback；LINE openExternalBrowser', () => {
+  url = new URL('https://grace63188.github.io/grace-IG/');
+  assert.equal(externalUrl('safari'), '');
+  assert.equal(externalUrl('intent'), 'intent://grace63188.github.io/grace-IG/?go=login#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fgrace63188.github.io%2Fgrace-IG%2F%3Fgo%3Dlogin;end');
+  assert.equal(externalUrl('line'), 'https://grace63188.github.io/grace-IG/?go=login&openExternalBrowser=1');
 });

@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023a';
-import { initQuiz } from './quiz.js?v=20261023a';
-import { initTickets } from './ticket.js?v=20261023a';
-import { loadConfig } from './config.js?v=20261023a';
-import { initSound, sfx } from './sound.js?v=20261023a';
-import { initTracking, track } from './track.js?v=20261023a';
-import { resume as resumeAuth, takeGoLogin } from './auth.js?v=20261023a';
-import { initGate, errText } from './gate.js?v=20261023a';
-import { initIntro } from './intro.js?v=20261023a';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023b';
+import { initQuiz } from './quiz.js?v=20261023b';
+import { initTickets } from './ticket.js?v=20261023b';
+import { loadConfig } from './config.js?v=20261023b';
+import { initSound, sfx } from './sound.js?v=20261023b';
+import { initTracking, track } from './track.js?v=20261023b';
+import { resume as resumeAuth, takeGoLogin } from './auth.js?v=20261023b';
+import { initGate, errText } from './gate.js?v=20261023b';
+import { initIntro } from './intro.js?v=20261023b';
 
 const root = document.documentElement;
 const FB = fallback();

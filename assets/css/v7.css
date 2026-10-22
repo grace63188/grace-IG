@@ -97,37 +97,52 @@
 .cta.pending{opacity:1}
 .cta.pending .go svg{animation:go-wait 900ms var(--ease-move) infinite alternate}
 @keyframes go-wait{from{opacity:.35;transform:translateX(-2px)}to{opacity:1;transform:translateX(2px)}}
-/* App 內建瀏覽器：主按鈕換到真正的瀏覽器；選單說明一直在下方；LINE／Google 為次要 */
-.inapp-open{display:flex;flex-direction:column;gap:8px}
+/* App 內建瀏覽器：只放開啟方式——標題、（Android／LINE）開啟鈕、右上角選單說明（大插圖＋香檳金脈動），不放登入鈕 */
+.inapp-h{font-size:21px;padding-top:4px}
+.auth-inapp{gap:14px}
 .cta-ext{text-decoration:none}
 .cta-ext .lead-ic{width:26px;height:26px;flex:none;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
 .cta-ext .lead-ic svg{width:16px;height:16px;stroke-width:1.9}
-.inapp-or{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--ink-3);letter-spacing:.12em;margin:2px 4px -2px}
-.inapp-or::before,.inapp-or::after{content:"";flex:1;height:1px;background:rgba(163,163,160,.45)}
-.auth-inapp .cta-sub.cta-line .lead-ic{background:none;box-shadow:none}
-.auth-inapp .cta-sub.cta-line .lead-ic svg{fill:var(--line-green)}
-.inapp{display:flex;flex-direction:column;gap:6px;padding:0 2px 0 6px;margin-top:-4px}
-.g-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.inapp small{font-size:12px;color:var(--ink-3);letter-spacing:.02em;line-height:1.45}
-.g-steps{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:6px 10px 6px 14px;border-radius:14px;
-  transition-property:background-color,box-shadow,color;transition-duration:var(--t-ui);transition-timing-function:ease-out}
-.g-step{font-size:12.5px;color:var(--ink-3);letter-spacing:.02em;line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
-.g-art{flex:none;width:40px;height:32px;fill:var(--ink-3);stroke:var(--ink-3);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px;opacity:.85}
-.g-art .g-art-k{fill:none}
-.g-art circle{stroke:none}
-.g-art .g-art-a{fill:none;stroke-dasharray:2.4 2.6}
-.g-steps.hl{background:rgba(184,151,90,.1);box-shadow:inset 0 0 0 1px rgba(184,151,90,.45)}
-.g-steps.hl .g-step{color:var(--ink)}
-.g-steps.hl .g-art{fill:var(--champagne-ink);stroke:var(--champagne-ink);opacity:1;animation:g-nudge 700ms var(--ease-out) 2}
-@keyframes g-nudge{50%{transform:translate(2px,-3px)}}
-.g-try{align-self:flex-start;min-height:32px;padding:0;font-size:12px;color:var(--ink-3);letter-spacing:.04em;text-decoration:underline;text-decoration-color:rgba(84,84,82,.4);text-underline-offset:3px;background:none}
-.g-try:active{color:var(--ink)}
+.g-steps{display:flex;flex-direction:column;gap:12px;padding:16px 16px 18px;border-radius:22px;background:rgba(184,151,90,.07);box-shadow:inset 0 0 0 1px rgba(184,151,90,.4);
+  transition-property:background-color,box-shadow;transition-duration:var(--t-ui);transition-timing-function:ease-out}
+.g-steps[hidden]{display:none}
+.g-step{font-size:17px;font-weight:500;color:var(--ink);letter-spacing:.04em;line-height:1.7;text-align:center;word-break:keep-all;overflow-wrap:anywhere}
+.g-step .g-key{display:inline-grid;place-items:center;min-width:34px;height:28px;padding:0 8px;margin:0 2px;border-radius:999px;vertical-align:1px;
+  font-size:17px;font-weight:700;line-height:1;color:var(--champagne-ink);background:var(--matte);box-shadow:inset 0 0 0 1.5px var(--champagne)}
+.g-step .g-pick{display:inline-block;white-space:nowrap}
+.g-step .g-item{font-weight:500;color:var(--champagne-ink)}
+.g-art{display:block;width:100%;height:auto;max-width:340px;margin:0 auto;overflow:visible;stroke-linecap:round;stroke-linejoin:round}
+.g-art .g-bar{fill:#FBFAF7;stroke:rgba(163,163,160,.6);stroke-width:1.5}
+.g-art .g-x{fill:none;stroke:var(--ink-3);stroke-width:2.4}
+.g-art .g-url{fill:rgba(163,163,160,.35)}
+.g-art .g-btn{fill:#fff;stroke:var(--champagne);stroke-width:2.4}
+.g-art .g-bar,.g-art .g-btn{filter:drop-shadow(0 1px 2px rgba(110,110,106,.25))}
+.g-art .g-dot{fill:var(--ink)}
+.g-art .g-ring{fill:rgba(184,151,90,.18);stroke:var(--champagne);stroke-width:1.5;transform-box:fill-box;transform-origin:center}
+.g-art .g-arr{fill:none;stroke:var(--champagne);stroke-width:3;stroke-dasharray:7 7}
+.g-art .g-head{stroke-dasharray:none}
+.g-steps.hl{background:rgba(184,151,90,.14);box-shadow:inset 0 0 0 2px var(--champagne)}
+/* 畫面右上角箭頭：指向 App 的選單鈕（卡片圖層內、遮罩之上） */
+.ig-point{display:none;position:absolute;top:calc(env(safe-area-inset-top, 0px) + 4px);right:6px;z-index:2;width:56px;height:56px;pointer-events:none;color:var(--champagne)}
+.sheet-layer.inapp-on .ig-point{display:block}
+.inapp-card .corner{visibility:hidden}               /* 右上角讓給箭頭（頁面在遮罩下、不可操作） */
+.ig-point svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+@media (prefers-reduced-motion:no-preference){
+  .g-art .g-ring{animation:g-pulse 1.8s ease-in-out infinite}
+  .g-art .g-arr{animation:g-flow 1.4s linear infinite}
+  .g-art .g-head{animation:none}
+  .ig-point{animation:g-bob 1.6s ease-in-out infinite}
+  .g-steps.hl .g-art{animation:g-nudge 700ms var(--ease-out) 2}
+}
+@keyframes g-pulse{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
+@keyframes g-flow{to{stroke-dashoffset:-14}}
+@keyframes g-bob{0%,100%{transform:none}50%{transform:translate(3px,-4px)}}
+@keyframes g-nudge{50%{transform:translateY(-3px)}}
 .pill-s{position:relative;isolation:isolate;overflow:hidden;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap;text-decoration:none;
   background:var(--matte);box-shadow:3px 3px 7px rgba(150,150,146,.5),-3px -3px 7px rgba(255,255,255,.9);
   transition-property:transform,box-shadow;transition-duration:var(--t-press);transition-timing-function:ease-out}
 .pill-s:active{transform:scale(.96);box-shadow:var(--matte-sink)}
 .pill-s svg{width:14px;height:14px;stroke-width:1.8}
-@media (prefers-reduced-motion:reduce){ .g-steps.hl .g-art{animation:none} }
 .auth-msg{font-size:13px;font-weight:500;color:var(--err-ink);letter-spacing:.02em;text-align:center}
 .priv{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;color:var(--ink-3);letter-spacing:.03em;padding-top:2px;text-align:center}
 .priv svg{width:12px;height:12px;stroke-width:1.8}
@@ -204,7 +219,8 @@
   .who{max-width:calc(50vw - 44px);gap:6px;padding-right:10px}
   .who .src{display:none}
   .rite-tk .iss{display:none}
-  .g-row{flex-direction:column;align-items:stretch}
+  .inapp-h{font-size:18px}
+  .g-step{font-size:15.5px}
 }
 @media (forced-colors:active){ .who,.who-m-b,.pill-s,.rite-tk,.wb-last,.g-steps.hl{border:1px solid CanvasText} }
 

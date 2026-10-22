@@ -4,12 +4,13 @@
      若瀏覽器略過提示，於卡片內改放 Google 官方按鈕完成登入
    - 自動登入：載入時有 vt → op visitor.me 續期；EXPIRED／UNAUTHORIZED 清除，視為未登入
    - 保存：localStorage gh.vt、gh.person（try/catch）；示範模式以模擬帳號完成，不連線
-   - App 內建瀏覽器（Instagram、Threads、Facebook、LINE 等 WebView）：Google 會擋 WebView；LINE 登入照常可用。
-     外部開啟（帶 ?go=login，重新開啟時直接到登入卡）：LINE 內建 openExternalBrowser=1、Android intent:// 交給 Chrome、iOS 17+ x-safari-https://，其餘只能靠 App 右上角選單
+   - App 內建瀏覽器（Instagram、Threads、Facebook、LINE 等 WebView）：不在此登入，先換到真正的瀏覽器。
+     外部開啟（帶 ?go=login，重新開啟時直接到登入卡）：LINE 內建 openExternalBrowser=1、Android intent:// 交給 Chrome，
+     iOS 只能靠 App 右上角選單（x-safari-https:// 實機不一定被放行，已移除）；顯示說明時以 markLoginUrl 把目前網址改成登入網址，選單開啟的網址即直接到登入卡
    - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state' */
-import { config } from './config.js?v=20261023a';
-import { post } from './api.js?v=20261023a';
-import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023a';
+import { config } from './config.js?v=20261023b';
+import { post } from './api.js?v=20261023b';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023b';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';
@@ -78,22 +79,13 @@ export const platform = () => ({ iOS: 'ios', Android: 'android' }[devInfo().os] 
 
 const pageUrl = () => location.href.split('#')[0];
 
-/** iOS 主版本（非 iOS 回 0）；x-safari-https:// 需 iOS 17 以上 */
-export function iosMajor(ua = navigator.userAgent || '') {
-  if (platform() !== 'ios') return 0;
-  const m = /(?:iPhone|CPU) OS (\d+)_/.exec(ua) || /Version\/(\d+)/.exec(ua);
-  return m ? Number(m[1]) : 0;
-}
-
 /** App 內建瀏覽器改用外部瀏覽器開啟本頁的方式：
     line＝LINE 內建瀏覽器（openExternalBrowser=1，改用預設瀏覽器）；intent＝Android（intent:// 交給 Chrome）；
-    safari＝iOS 17 以上（x-safari-https://，不一定被 App 放行，需搭配選單指引）；''＝只能靠 App 右上角選單 */
+    ''＝只能靠 App 右上角選單（iOS 的 IG、Threads、Facebook 等） */
 export function externalMode() {
   if (typeof window.__pvIG === 'boolean') return '';                     /* 預覽：只顯示選單指引 */
   if (inAppName() === 'LINE') return 'line';
-  const os = platform();
-  if (os === 'android') return 'intent';
-  if (os === 'ios' && iosMajor() >= 17) return 'safari';
+  if (platform() === 'android') return 'intent';
   return '';
 }
 /** 換到外部瀏覽器後要開的網址：保留目前路徑與參數，加 go=login（重新開啟時直接到登入卡；k＝測驗種類） */
@@ -104,12 +96,19 @@ export function loginUrl(kind = 'ability') {
   if (kind === 'career') u.searchParams.set('k', 'career');
   return u.toString();
 }
+/** 顯示 App 內開啟說明時：目前網址改成登入網址（App 選單「在外部瀏覽器開啟」帶走的就是它），回傳還原函式 */
+export function markLoginUrl(kind = 'ability') {
+  try {
+    const was = location.pathname + location.search + location.hash, u = new URL(loginUrl(kind));
+    history.replaceState(history.state, '', u.pathname + u.search + location.hash);
+    return () => { try { history.replaceState(history.state, '', was); } catch (e) { /* 忽略 */ } };
+  } catch (e) { return () => {}; }
+}
 /** 對應方式的外部開啟網址 */
 export function externalUrl(mode = externalMode(), kind = 'ability') {
   const url = loginUrl(kind), u = new URL(url);
   if (mode === 'line') { u.searchParams.set('openExternalBrowser', '1'); return u.toString(); }
   if (mode === 'intent') return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-  if (mode === 'safari') return `x-safari-${url}`;
   return '';
 }
 /** 嘗試以外部瀏覽器開啟；回 { mode, os }（mode 為 '' 表示無可用方式） */
