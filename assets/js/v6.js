@@ -2,10 +2,18 @@
    時效規則沿用 v5 timed.js：
    - 活動過 end → 「現在」移除該則；入口鍵退為霧面「目前無進行中活動」，卡片改導向校長 IG；尚未開始則倒數到 start
    - 直播只取 end 未過者；開播中顯示「直播中」並收起「加入行事曆」；全無 → 入口鍵顯示「追蹤校長 IG」
-   - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目 */
+   - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
+   v7：撕票後滑出儀式卡（測驗前登入）、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
+   v8：進站開場儀式（intro.js／intro.css） */
 import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js';
 import { initQuiz } from './quiz.js';
 import { initTickets } from './ticket.js';
+import { loadConfig } from './config.js';
+import { initSound, sfx } from './sound.js';
+import { initTracking, track } from './track.js';
+import { resume as resumeAuth } from './auth.js';
+import { initGate, errText } from './gate.js';
+import { initIntro } from './intro.js';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -19,12 +27,21 @@ const md = (t) => { const p = tpe(t); return `${pad(p.mo)}.${pad(p.d)}`; };
 let cur = null, opener = null;
 const sheetOf = (name) => $(`#s-${name}`);
 
-function openSheet(name, from) {
+/* ritual：撕票後由「開始測驗」卡換成儀式卡——舊卡 160ms ease-in 退下，儀式卡 300ms 滑入（減少動態：淡入淡出） */
+function openSheet(name, from, { ritual = false } = {}) {
   const next = sheetOf(name);
   if (!next) return;
   if (cur === next) return;
-  if (cur) { cur.hidden = true; cur.style.removeProperty('--drag'); }      /* 卡片間切換：直接替換，不重播整段開合 */
-  else opener = from || document.activeElement;
+  if (cur) {
+    const old = cur;
+    old.style.removeProperty('--drag');
+    if (ritual && !layer.hidden) {
+      old.classList.add('leaving');
+      next.classList.add('enter');
+      setTimeout(() => { old.hidden = true; old.classList.remove('leaving'); }, 180);
+      setTimeout(() => next.classList.remove('enter'), 700);
+    } else old.hidden = true;                                              /* 卡片間切換：直接替換，不重播整段開合 */
+  } else opener = from || document.activeElement;
   cur = next;
   next.hidden = false;
   next.querySelector('.sh-body').scrollTop = 0;
@@ -34,14 +51,16 @@ function openSheet(name, from) {
     setInert(page, true);
     void layer.offsetWidth;
     requestAnimationFrame(() => layer.classList.add('on'));
+    if (!ritual) sfx('slide', { delay: 0.04 });
   }
   if (name === 'event') paintCampaign(now());
   setTimeout(() => { const h = next.querySelector('h2'); h.tabIndex = -1; h.focus({ preventScroll: true }); }, 30);
 }
 
-function closeSheet(instant) {
+function closeSheet(instant, via) {
   if (!cur) return;
   const s = cur; cur = null;
+  if (via) track(`${s.id.slice(2)}.close`, 'close', { via });
   layer.classList.remove('on');
   s.style.removeProperty('--drag');
   root.classList.remove('sheet-open');
@@ -54,11 +73,16 @@ function closeSheet(instant) {
 function initSheets() {
   document.addEventListener('click', (e) => {
     const o = e.target.closest('[data-open]');
-    if (o) { e.preventDefault(); openSheet(o.dataset.open, cur ? opener : o); return; }
-    if (e.target.closest('[data-close]') || e.target === $('#scrim')) closeSheet();
+    if (o) {
+      e.preventDefault();
+      if (o.classList.contains('k')) sfx('key');
+      openSheet(o.dataset.open, cur ? opener : o); return;
+    }
+    if (e.target.closest('[data-close]')) closeSheet(false, 'button');
+    else if (e.target === $('#scrim')) closeSheet(false, 'scrim');
   });
   layer.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); closeSheet(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); closeSheet(false, 'esc'); return; }
     if (e.key !== 'Tab' || !cur) return;
     const f = $$('a[href],button:not([disabled]),summary,[tabindex="0"]', cur).filter((x) => x.offsetParent !== null);
     if (!f.length) return;
@@ -87,7 +111,7 @@ function initSheets() {
       if (y0 == null) return;
       const v = dy / Math.max(1, performance.now() - t0);        /* px/ms */
       y0 = null; s.classList.remove('dragging');
-      if (dy > 110 || (dy > 30 && v > 0.6)) closeSheet();
+      if (dy > 110 || (dy > 30 && v > 0.6)) closeSheet(false, 'drag');
       else s.style.setProperty('--drag', '0px');
     };
     top.addEventListener('pointerdown', (e) => { start(e, false); if (y0 != null) top.setPointerCapture(e.pointerId); });
@@ -122,7 +146,7 @@ function paintConsult(c) {
   let n = 0;
   $('#acc').innerHTML = c.groups.map((g, gi) => {
     n += g.items.length;
-    return `<details><summary>${esc(g.key)}<span class="n">${g.items.length} 項</span><svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></summary><ul>${
+    return `<details data-ev-toggle="consult.group.${esc(g.id || gi)}"><summary>${esc(g.key)}<span class="n">${g.items.length} 項</span><svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></summary><ul>${
       g.items.map((it) => `<li><b>${esc(it.name)}</b><span class="p en"><em>NT$</em>${esc(it.price)}<small>／${esc(it.unit || unit)}</small></span><span class="d">${esc(it.desc)}</span></li>`).join('')
     }</ul></details>`;
   }).join('');
@@ -192,13 +216,15 @@ function paintCampaign(t) {
 }
 
 /* ---------- 直播 ---------- */
+/* 加入行事曆（Google 日曆範本）：標題固定「校長IG直播」、說明固定兩行、地點為校長 IG；時間照 live.json
+   畫面上的「IG直播」字樣不受影響 */
 export const GCAL_TITLE = '校長IG直播';
 export const GCAL_IG = 'https://www.instagram.com/grace.wwwwwwww';
+export const GCAL_DETAILS = `不見不散，校長在等你🤍\n${GCAL_IG}`;
 export function gcalUrl(e) {
   const f = (t) => new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const q = ['action=TEMPLATE', `text=${encodeURIComponent(GCAL_TITLE)}`, `dates=${f(ts(e.start))}/${f(ts(e.end))}`,
-    `details=${encodeURIComponent(`不見不散，校長在等你🤍\n${GCAL_IG}`)}`,
-    `location=${encodeURIComponent(GCAL_IG)}`].join('&');
+    `details=${encodeURIComponent(GCAL_DETAILS)}`, `location=${encodeURIComponent(GCAL_IG)}`].join('&');
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 
@@ -279,11 +305,30 @@ function initTimed(data) {
 
 async function start() {
   root.classList.add('ready', 'booted');
+  const cfgP = loadConfig();
+  initSound();
+  /* 開場儀式（intro.js）：重播前先收起卡片與測驗 */
+  initIntro({ prepare: () => { closeSheet(true); const q = $('#quiz'); if (q && !q.hidden) $('#qz-close').click(); } });
   initSheets();
   initTabs();
   const quiz = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')) });
-  /* 撕票後：先收起卡片，再開測驗；測驗關閉時焦點回到「開始測驗」鍵 */
-  initTickets({ open: (k) => { closeSheet(true); quiz.open(k, $('[data-open="quiz"].k')); } });
+  /* 撕票 → 儀式卡（登入）→ 開始作答：收起卡片後直接進第一題；測驗關閉時焦點回到「開始測驗」鍵 */
+  const gate = initGate({
+    openSheet, closeSheet,
+    startQuiz: (k) => quiz.open(k, $('[data-open="quiz"].k'), { direct: true }),
+  });
+  initTickets({ open: (k) => gate.open(k) });
+  cfgP.then(async () => {
+    initTracking();
+    let ref = ''; try { ref = document.referrer ? new URL(document.referrer).host : ''; } catch (e) { /* 忽略 */ }
+    track('page.enter', 'view', { ref });
+    /* 從 LINE／Google 授權頁返回：直接回到儀式卡 */
+    const r = await resumeAuth();
+    if (r && r.kind) {
+      if (r.session) { track('auth.success', 'auth', { provider: r.provider, kind: r.kind }); gate.open(r.kind, { state: 'done' }); }
+      else { track('auth.fail', 'auth', { provider: r.provider || 'line', kind: r.kind, code: r.error }); gate.open(r.kind, { msg: errText(r.error) }); }
+    }
+  });
   paintConsult(FB.consult);
   initTimed({ campaigns: FB.campaigns, live: FB.live });
   applyPodcast(FB.podcast || null);

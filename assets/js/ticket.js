@@ -1,6 +1,9 @@
-/* 自我測驗票券：點擊、Enter、空白鍵，或把票根往右拖過 44px，都會撕下票根（約 1.2 秒儀式）後開啟測驗。
-   拖曳只是加分手勢，單擊永遠可用（WCAG 2.5.7）。減少動態時改為約 0.36 秒淡出淡入。 */
-import { $$, reduced, buzz } from './core.js';
+/* 自我測驗票券：點擊、Enter、空白鍵，或把票根往右拖過 44px，都會撕下票根（約 1.2 秒儀式）後滑出儀式卡。
+   拖曳只是加分手勢，單擊永遠可用（WCAG 2.5.7）。減少動態時改為約 0.36 秒淡出淡入。
+   音效：120ms 紙張撕裂、360ms 印章落下；儀式卡出現的水晶輕敲由 gate.js 播放 */
+import { $$, reduced } from './core.js';
+import { sfx } from './sound.js';
+import { track } from './track.js';
 
 const T_TEAR = 1200, T_RM = 360, PULL = 44;
 
@@ -10,10 +13,12 @@ export function initTickets(quiz) {
     const stub = btn.querySelector('.tk-stub');
     let x0 = null, dx = 0, dragged = false;
 
-    const tear = () => {
+    const tear = (via = 'click') => {
       if (btn.dataset.busy) return;
       btn.dataset.busy = '1';
-      buzz(14);
+      track(`tear.${btn.dataset.quiz}`, 'tear', { via });
+      sfx('tear', { delay: reduced() ? 0 : 0.12 });
+      sfx('stamp', { delay: reduced() ? 0.12 : 0.36, haptic: false });
       wrap.classList.remove('dragging');
       wrap.classList.add('is-tearing');
       setTimeout(() => {
@@ -26,7 +31,7 @@ export function initTickets(quiz) {
     btn.addEventListener('click', (e) => {
       e.stopImmediatePropagation();
       if (dragged) { dragged = false; return; }
-      tear();
+      tear(e.detail === 0 ? 'key' : 'click');
     }, { capture: true });
     /* 拖曳後若瀏覽器沒有補發 click（觸控移動常見），下一次真正的點擊不能被吞掉 */
     const clearDrag = () => setTimeout(() => { dragged = false; }, 80);
@@ -45,7 +50,7 @@ export function initTickets(quiz) {
     const end = () => {
       if (x0 == null) return;
       x0 = null;
-      if (dx >= PULL) { dragged = true; tear(); }
+      if (dx >= PULL) { dragged = true; tear('drag'); }
       else { wrap.classList.remove('dragging'); wrap.style.removeProperty('--dx'); wrap.style.removeProperty('--rot'); if (dx > 4) dragged = true; }  /* 未達門檻：回彈 */
       clearDrag();
     };

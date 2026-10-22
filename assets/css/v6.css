@@ -14,7 +14,7 @@
 /* ---------- 版面 ---------- */
 .page.v6{max-width:560px;padding-top:max(26px, env(safe-area-inset-top, 0px));padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));
   min-height:100svh;display:flex;flex-direction:column;gap:20px}
-.v6 .mast{padding:0 0 6px}
+.v6 .mast{padding:0}
 .v6 .mast-h{flex-direction:column;align-items:center;gap:8px}
 .v6 .mast .logo{width:150px}
 .v6 .mast .cap{font-size:12.5px;letter-spacing:.26em}
@@ -202,7 +202,9 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
     box-shadow:0 30px 60px -20px rgba(20,20,18,.45),0 8px 18px rgba(20,20,18,.12),inset 0 1px 0 rgba(255,255,255,.8);
     transform:translate(-50%,-48%) scale(.96);opacity:0;transition:transform var(--sheet-out) var(--ease-in),opacity var(--sheet-out) var(--ease-in)}
   .sheet-layer.on .sheet{transform:translate(-50%,-50%);opacity:1;transition:transform 260ms var(--ease-out),opacity 200ms var(--ease-out)}
-  .home{flex:1;justify-content:center}
+  /* v8：版頭小標移除後，Logo 與內容視為一組垂直置中（版頭到「現在」列＝頁面間距 30px），頁尾留在底部 */
+  .home{flex:none;justify-content:center}
+  .v6 .mast{margin-top:auto}
   .grab{display:none}
   .sh-top{padding-top:22px;cursor:default;touch-action:auto}
   .sh-body{margin:0 -26px;padding:6px 26px 28px}

@@ -1,0 +1,116 @@
+/* =========================================================
+   @grace.wwwwwwww資源平台 v8｜開場儀式（intro.js）
+   霧面灰底＋Logo（光暈呼吸、光澤掃過）＋ENTER（文字＋箭頭＋髮絲線）；SKIP 在右上角
+   Enter 後：蓄力 → 白金閃光＋衝擊環、入口卡自中心炸開（速度拉伸＋殘影）→ 急速環繞（金色光軌）→ 慢放 3D 傾斜 → 落位咬合＋反光；
+   Logo 飛到版頭（從卡片下方穿過）
+   沿用 site.css 語彙（--clay、--obs-*、--champagne、--ease-out），不新增色彩或字型
+   只動 transform／opacity；減少動態：只淡入淡出
+   ========================================================= */
+
+/* 模式（由 head 內嵌腳本設定）：intro-full 待按 Enter／intro-brief 短淡出／intro-play 播放中；intro-hold 遮住首頁
+   本裝置看過（data-intro="none"）不加任何 intro-* class：開場層不顯示，直接是首頁 */
+.intro{position:fixed;inset:0;z-index:90;display:none;touch-action:none;overscroll-behavior:none;--lw:min(54vw,232px);--my:44%}
+html.intro-full .intro,html.intro-brief .intro,html.intro-play .intro{display:block}
+html.intro-brief .intro{pointer-events:none}
+html.intro-play .intro{cursor:default}
+html.intro-hold .mast,html.intro-hold .home,html.intro-hold .foot,html.intro-hold .corner,html.intro-hold .skip{opacity:0}
+/* 開場已接手首頁入場：關閉 v6 的入口鍵浮起，避免重播 */
+html[data-intro] .keys .k,html[data-intro] .now{animation:none}
+
+/* ---------- 霧面底 ---------- */
+.intro-bg{position:absolute;inset:0;background:radial-gradient(120% 78% at 50% var(--my),#F0F0EE 0%,#E7E7E5 44%,#DADAD7 100%);background-color:var(--clay)}
+
+/* ---------- Logo：光暈呼吸＋光澤掃過（光澤以 Logo 本身為遮罩，只落在筆畫上） ---------- */
+.intro-mark{position:absolute;left:50%;top:var(--my);width:var(--lw);height:calc(var(--lw) * .5771);margin:calc(var(--lw) * -.28855) 0 0 calc(var(--lw) / -2);will-change:transform}
+.intro-logo{position:relative;z-index:1;width:100%;height:100%}
+.intro-halo{position:absolute;left:50%;top:50%;width:190%;height:200%;border-radius:50%;pointer-events:none;opacity:.75;transform:translate(-50%,-50%);
+  background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,255,255,.6) 38%,rgba(226,203,154,.16) 68%,rgba(226,203,154,0))}
+.intro-sheen{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
+.intro-sheen::before{content:"";position:absolute;top:-10%;bottom:-10%;left:-42%;width:42%;
+  background:linear-gradient(100deg,rgba(255,255,255,0) 0,rgba(255,255,255,.55) 38%,rgba(255,255,255,.95) 50%,rgba(255,255,255,.55) 62%,rgba(255,255,255,0) 100%);
+  transform:translateX(0)}
+
+/* ---------- 爆發層（只動 transform／opacity） ---------- */
+/* 白金閃光：全畫面純色（不畫漸層，合成成本最低）；中心光團與衝擊環以 Logo 中心為原點 */
+.intro-flash{position:absolute;inset:0;z-index:3;background:#FFFCF4;opacity:0;pointer-events:none}
+.intro-bloom{position:absolute;left:50%;top:var(--my);z-index:2;width:min(90vw,640px);height:min(90vw,640px);border-radius:50%;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.58);
+  background:radial-gradient(closest-side,#fff 0,rgba(255,252,242,.96) 16%,rgba(240,222,180,.55) 38%,rgba(226,203,154,.18) 62%,rgba(226,203,154,0) 100%)}
+.intro-shock{position:absolute;left:50%;top:var(--my);z-index:2;width:0;height:0;border-radius:50%;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.2);
+  border:1.5px solid rgba(226,203,154,.95);box-shadow:0 0 14px 2px rgba(226,203,154,.55),inset 0 0 10px rgba(255,255,255,.75)}
+/* 殘影：與卡片同一條路徑落後 34／68ms，只在高速時浮現；疊在 Logo 之上、卡片之下 */
+.intro-trails{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;contain:strict}
+.intro-ghost{position:absolute;border-radius:var(--tile-r,26px);opacity:0;will-change:transform,opacity;
+  background:linear-gradient(160deg,rgba(64,64,72,.92),rgba(22,22,26,.92) 60%,rgba(40,36,30,.92));box-shadow:inset 0 0 0 1px rgba(226,203,154,.35)}
+html:not(.intro-play) .intro-trails{display:none}
+
+/* ---------- ENTER：文字＋箭頭＋髮絲線 ---------- */
+.intro-act{position:absolute;left:0;right:0;top:calc(var(--my) + var(--lw) * .28855 + clamp(36px,7vh,68px));display:flex;flex-direction:column;align-items:center}
+.intro-enter{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:176px;min-height:56px;padding:8px 28px;border-radius:14px;
+  color:var(--ink);background:none;font-family:var(--geo);-webkit-tap-highlight-color:transparent;transition:transform var(--t-press,150ms) var(--ease-out)}
+.intro-enter:active{transform:scale(.97)}
+.ie-row{position:relative;display:inline-flex;align-items:center;gap:14px;line-height:1}
+.ie-t{font-size:13px;font-weight:500;letter-spacing:.52em;margin-right:-.52em}
+.ie-arw{width:20px;height:10px;fill:none;stroke:currentColor;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round;transition:transform var(--t-ui,200ms) var(--ease-out)}
+.ie-rule{display:block;align-self:stretch;height:1px;margin-top:11px;transform:scaleX(0);transform-origin:0 50%;
+  background:linear-gradient(90deg,rgba(28,28,27,0),rgba(28,28,27,.6) 14%,rgba(111,84,38,.75) 50%,rgba(28,28,27,.6) 86%,rgba(28,28,27,0))}
+@media (hover:hover){
+  .intro-enter:hover .ie-arw{transform:translateX(4px)}
+}
+
+.intro-skip{position:absolute;top:max(10px, env(safe-area-inset-top, 0px));right:max(8px, env(safe-area-inset-right, 0px));min-width:44px;min-height:44px;padding:0 12px;
+  font-family:var(--geo);font-size:11px;font-weight:500;color:var(--ink-3);letter-spacing:.32em;text-indent:.32em;border-radius:12px;transition:color var(--t-ui) ease}
+@media (hover:hover){ .intro-skip:hover{color:var(--ink)} }
+html.intro-brief .intro-act,html.intro-brief .intro-skip{display:none}
+
+/* ---------- 光軌層：在首頁之下（卡片從光軌上方掠過） ---------- */
+.intro-fx{position:fixed;inset:0;z-index:-1;display:none;overflow:hidden;pointer-events:none;contain:strict}
+html.intro-play .intro-fx{display:block}
+.intro-ring{position:absolute;left:0;top:0;width:0;height:0;border-radius:50%;opacity:0;will-change:transform,opacity;
+  background:repeating-conic-gradient(rgba(184,151,90,0) 0deg 20deg,rgba(184,151,90,.28) 44deg,rgba(226,203,154,.95) 59.2deg,rgba(184,151,90,0) 60deg);
+  -webkit-mask:radial-gradient(closest-side,transparent calc(100% - 7px),#000 calc(100% - 3.5px),transparent 100%);
+          mask:radial-gradient(closest-side,transparent calc(100% - 7px),#000 calc(100% - 3.5px),transparent 100%)}
+
+/* ---------- 播放中 ---------- */
+html.intro-play body{background:transparent}                    /* 讓光軌層透出（頁面底色由 html 承擔，同色） */
+html.intro-play .page{pointer-events:none}
+html.intro-play .mast .logo{opacity:0}                          /* Logo 飛抵版頭的那一格才換上真正的 Logo */
+html.intro-landed .mast .logo{opacity:1}
+html.intro-play .keys .k{will-change:transform,opacity}
+/* 播放中入口卡疊在開場層（z-index 90）之上：環繞經過 Logo、Logo 飛往版頭時，Logo 都在卡片下方，不蓋住卡片文字
+   （.page／.home／.keys 不建立堆疊環境，卡片直接與 .intro 比較 z-index；結束移除 intro-play 即回到原本層級） */
+html.intro-play .keys .k{z-index:91}
+
+@media (prefers-reduced-motion:no-preference){
+  /* 待機：Logo 緩緩浮現、Enter 隨後；光暈呼吸、光澤每 4.2 秒掃過一次 */
+  html.intro-full .intro-mark{animation:intro-in 1000ms var(--ease-out) both}
+  html.intro-full .intro-act{animation:intro-up 640ms var(--ease-out) 420ms both}
+  /* 髮絲線在待機時畫入 */
+  html.intro-full .ie-rule{animation:ie-draw 900ms cubic-bezier(.65,0,.35,1) 1000ms both}
+  html.intro-full .intro-skip{animation:intro-fade 600ms ease-out 900ms both}
+  html.intro-full .intro-halo{animation:intro-breathe 3.6s ease-in-out 600ms infinite alternate both}
+  html.intro-full .intro-sheen::before{animation:intro-sheen 4.2s cubic-bezier(.65,0,.35,1) 1.2s infinite}
+  /* 落位咬合那一刻：每張黑曜石卡掠過一道反光（時間由 intro.js 依 TL 寫入 --ig-t／--ig-st） */
+  html.intro-play .keys .k::after{content:"";position:absolute;top:-25%;bottom:-25%;left:0;width:42%;z-index:-1;pointer-events:none;
+    background:linear-gradient(100deg,rgba(255,255,255,0),rgba(226,203,154,.22) 40%,rgba(255,255,255,.5) 50%,rgba(255,255,255,0));
+    transform:translateX(-140%) skewX(-18deg);animation:intro-k-sheen 380ms cubic-bezier(.3,0,.2,1) calc(var(--ig-t,1990ms) + var(--i,0) * var(--ig-st,36ms)) both}
+}
+@media (prefers-reduced-motion:reduce){
+  html.intro-full .intro-mark,html.intro-full .intro-act,html.intro-full .intro-skip{animation:intro-fade 400ms ease-out both}
+  .ie-rule{transform:none}
+}
+@keyframes intro-in{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+@keyframes intro-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes intro-fade{from{opacity:0}to{opacity:1}}
+@keyframes intro-breathe{from{opacity:.55;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1.04)}}
+@keyframes intro-sheen{0%{transform:translateX(0)}36%,100%{transform:translateX(360%)}}
+@keyframes ie-draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes intro-k-sheen{from{transform:translateX(-140%) skewX(-18deg)}to{transform:translateX(330%) skewX(-18deg)}}
+
+@media (min-width:768px){
+  .intro{--lw:280px;--my:45%}
+  .ie-t{font-size:13.5px}
+  .intro-skip{top:18px;right:20px}
+}
+@media (max-height:640px) and (max-width:767px){ .intro{--lw:min(46vw,200px)} }
+@media (forced-colors:active){ .ie-rule{background:CanvasText} .intro-halo,.intro-sheen,.intro-ring,.intro-flash,.intro-bloom,.intro-shock,.intro-trails{display:none} }

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>@grace.wwwwwwww資源平台</title>
-<meta name="description" content="@grace.wwwwwwww資源平台：學院課程、Sampler 體驗課程、一對一諮詢、能力健檢與職涯定位測驗、校長 IG 直播與 PODCAST《我們下課吧》、限時活動與客服窗口，一頁找到。">
+<meta name="description" content="G.R.A.C.E Academy：學院課程、Sampler 體驗課程、一對一諮詢、能力健檢與職涯定位測驗、校長 IG 直播與 PODCAST《我們下課吧》、限時活動與客服窗口，一頁找到。">
 <meta name="theme-color" content="#E4E4E2">
 <meta name="color-scheme" content="light">
 <meta property="og:type" content="website">
@@ -12,14 +12,17 @@
 <meta property="og:site_name" content="@grace.wwwwwwww資源平台">
 <meta property="og:title" content="@grace.wwwwwwww資源平台">
 <meta property="og:description" content="學院課程、體驗課程、一對一諮詢、自我測驗、內容頻道、限時活動與客服窗口，一頁找到。">
-<meta property="og:url" content="https://grace63188.github.io/grace-ig/">
-<meta property="og:image" content="https://grace63188.github.io/grace-ig/assets/og.png">
+<meta property="og:url" content="https://grace63188.github.io/grace-IG/">
+<meta property="og:image" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261022c">
+<meta property="og:image:secure_url" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261022c">
+<meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="@grace.wwwwwwww資源平台">
+<meta property="og:image:alt" content="G.R.A.C.E Academy">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="@grace.wwwwwwww資源平台">
-<link rel="canonical" href="https://grace63188.github.io/grace-ig/">
+<meta name="twitter:image" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261022c">
+<link rel="canonical" href="https://grace63188.github.io/grace-IG/">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
 <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,10 +34,35 @@
 <link rel="preload" as="image" href="assets/img/logo-engraved.webp" type="image/webp">
 <link rel="stylesheet" href="assets/css/site.css">
 <link rel="stylesheet" href="assets/css/v6.css">
-<script>document.documentElement.classList.add('js');</script>
+<link rel="stylesheet" href="assets/css/v7.css">
+<link rel="stylesheet" href="assets/css/intro.css">
+<!-- 開場模式：網址帶 ?intro=1 → full（強制重看）；本裝置看過（localStorage grace.intro.seen，存不了時看 sessionStorage）→ none（直接首頁）；從登入返回 → brief（Logo 短暫淡出）；其餘（第一次造訪）→ full。儲存空間讀取失敗一律視為沒看過。intro.js 未在 5 秒內載入時直接放行首頁 -->
+<script>(function(d){d.classList.add('js');var K='grace.intro.seen',q='',s=false,m='full';try{q=location.search}catch(e){}try{s=localStorage.getItem(K)==='1'}catch(e){}if(!s){try{s=sessionStorage.getItem(K)==='1'}catch(e){}}if(/[?&]intro=1(&|$)/.test(q))m='full';else if(s)m='none';else if(/[?&]auth=/.test(q))m='brief';d.setAttribute('data-intro',m);if(m==='none')return;d.classList.add('intro-'+m,'intro-hold');setTimeout(function(){if(!window.__introOk)d.classList.remove('intro-full','intro-brief','intro-hold')},5000)})(document.documentElement);</script>
 <script type="module" src="assets/js/v6.js"></script>
 </head>
 <body>
+<!-- 開場儀式（intro.js）：霧面底＋Logo（光暈呼吸、光澤掃過）＋ENTER（文字＋箭頭＋髮絲線）；SKIP 在右上角
+     爆發層：intro-flash 全畫面白金閃光、intro-bloom 中心光團、intro-shock 衝擊環、intro-trails 卡片殘影（JS 建立） -->
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-label="@grace.wwwwwwww資源平台">
+  <div class="intro-bg" aria-hidden="true"></div>
+  <div class="intro-mark" id="intro-mark">
+    <i class="intro-halo" aria-hidden="true"></i>
+    <img class="intro-logo" id="intro-logo" src="assets/img/logo-engraved.webp" width="480" height="277" alt="G.R.A.C.E Academy" decoding="async">
+    <i class="intro-sheen" aria-hidden="true"></i>
+  </div>
+  <i class="intro-bloom" aria-hidden="true"></i>
+  <i class="intro-shock" id="intro-shock" aria-hidden="true"></i>
+  <div class="intro-trails" id="intro-trails" aria-hidden="true"></div>
+  <i class="intro-flash" aria-hidden="true"></i>
+  <div class="intro-act" id="intro-act">
+    <button class="intro-enter" id="intro-enter" type="button">
+      <span class="ie-row"><span class="ie-t" lang="en">ENTER</span><svg class="ie-arw" viewBox="0 0 20 10" width="20" height="10" aria-hidden="true" focusable="false"><path d="M0 5h18.5M14.5 1l4 4-4 4"/></svg></span>
+      <i class="ie-rule" aria-hidden="true"></i>
+    </button>
+  </div>
+  <button class="intro-skip" id="intro-skip" type="button" aria-label="略過開場"><span lang="en">SKIP</span></button>
+</div>
+<div class="intro-fx" aria-hidden="true"><i class="intro-ring" id="intro-ring"></i></div>
 <a class="skip" href="#main">跳到主要內容</a>
 <svg width="0" height="0" class="sprite" aria-hidden="true" focusable="false">
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
@@ -77,12 +105,30 @@
   <symbol id="i-live" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12.5" height="11" rx="2.5"/><path d="M16 10.6l4.5-2.6v8l-4.5-2.6"/></symbol>
   <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2.8 9.5 12 5l9.2 4.5L12 14z"/><path d="M6.5 11.5v4.3c1.4 1.5 3.3 2.2 5.5 2.2s4.1-.7 5.5-2.2v-4.3M21.2 9.5v5"/></symbol>
   <symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M3 9h18M12 9v11M12 9c-1.4-3.4-5.5-4.1-5.5-1.6C6.5 9 12 9 12 9zM12 9c1.4-3.4 5.5-4.1 5.5-1.6C17.5 9 12 9 12 9z"/></symbol>
+  <!-- v7：音效、隱私、外部開啟、LINE 實心標誌 -->
+  <symbol id="i-snd" viewBox="0 0 24 24"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18 6.8a7.4 7.4 0 0 1 0 10.4"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M13.5 5.5h5v5M18.5 5.5l-8 8M17 13.5v4a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 5 17.5v-9A1.5 1.5 0 0 1 6.5 7h4"/></symbol>
+  <symbol id="i-linef" viewBox="0 0 24 24"><path d="M12 3.6C6.6 3.6 2.4 7 2.4 11.3c0 3.8 3.4 7 8 7.6.3.1.7.2.8.5.1.2.1.6 0 .9l-.1.8c0 .2-.2.9.8.5 1-.4 5.5-3.2 7.5-5.5 1.4-1.5 2.1-3.1 2.1-4.8C21.6 7 17.4 3.6 12 3.6z"/></symbol>
   <symbol id="i-signal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.8"/><path d="M8.2 15.8a5.4 5.4 0 0 1 0-7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.3 18.7a9.5 9.5 0 0 1 0-13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4"/></symbol>
 </svg>
 
 <div class="page v6">
+  <!-- 頂部角落：頭像 chip（登入後，左）＋靜音鈕（右）；不佔版面，不壓版頭與「現在」列 -->
+  <div class="corner" id="corner">
+    <div class="who-wrap" id="who-wrap" hidden>
+      <button class="who" id="who" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="who-menu" data-ev="who.menu"><span class="av" id="who-av" aria-hidden="true">學</span><span class="who-t"><small>歡迎回來</small><span class="who-n" id="who-n">學員</span></span><span class="src" id="who-src" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><use href="#i-linef"/></svg></span></button>
+      <div class="who-menu" id="who-menu" hidden>
+        <p class="who-m-h"><b id="who-m-n">學員</b><small id="who-m-s">LINE 登入</small></p>
+        <button class="who-m-b" id="who-switch" type="button" data-ev="who.switch"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg><span>切換帳號</span></button>
+      </div>
+    </div>
+    <p class="sr-only" id="who-live" aria-live="polite"></p>
+    <button class="bead round snd" id="snd" type="button" data-snd="home" aria-pressed="false" aria-label="音效開啟，點一下靜音"><svg class="i s-on" aria-hidden="true" focusable="false"><use href="#i-snd"/></svg><svg class="i s-off" aria-hidden="true" focusable="false"><use href="#i-mute"/></svg></button>
+  </div>
   <header class="mast">
-    <h1 class="mast-h"><img class="logo" src="assets/img/logo-engraved.webp" width="480" height="277" alt="G.R.A.C.E Academy"><span class="sr-only">@grace.wwwwwwww資源平台</span></h1>
+    <h1 class="mast-h"><img class="logo" src="assets/img/logo-engraved.webp" width="480" height="277" alt="G.R.A.C.E Academy"></h1>
   </header>
 
   <main id="main" class="home">
@@ -90,46 +136,46 @@
     <section class="now" aria-label="現在">
       <p class="now-k">現在</p>
       <ul class="now-track" id="now-track">
-        <li id="now-live"><button class="chip" type="button" data-open="live"><i class="cd onair" aria-hidden="true"></i><span class="en" id="now-live-t">10.25 19:30</span><span id="now-live-n">IG直播</span></button></li>
-        <li id="now-event"><button class="chip" type="button" data-open="event"><i class="cd gold" aria-hidden="true"></i><span id="now-event-n">五週年慶</span><span id="now-event-l">剩 <b class="en">--</b> 天</span></button></li>
-        <li id="now-none" hidden><button class="chip" type="button" data-open="follow"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-ig"/></svg><span>最新消息公告於校長 IG</span></button></li>
-        <li id="now-pod" hidden><button class="chip" type="button" data-open="follow"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg><span id="now-pod-t">最新一集</span></button></li>
+        <li id="now-live"><button class="chip" type="button" data-open="live" data-ev="now.live"><i class="cd onair" aria-hidden="true"></i><span class="en" id="now-live-t">10.25 19:30</span><span id="now-live-n">IG直播</span></button></li>
+        <li id="now-event"><button class="chip" type="button" data-open="event" data-ev="now.event"><i class="cd gold" aria-hidden="true"></i><span id="now-event-n">五週年慶</span><span id="now-event-l">剩 <b class="en">--</b> 天</span></button></li>
+        <li id="now-none" hidden><button class="chip" type="button" data-open="follow" data-ev="now.ig"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-ig"/></svg><span>最新消息公告於校長 IG</span></button></li>
+        <li id="now-pod" hidden><button class="chip" type="button" data-open="follow" data-ev="now.podcast"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg><span id="now-pod-t">最新一集</span></button></li>
       </ul>
     </section>
 
     <!-- 六顆入口鍵 -->
     <nav class="keys" id="keys" aria-label="入口">
-      <button class="k obs" style="--i:0" type="button" data-open="quiz" aria-haspopup="dialog">
+      <button class="k obs" style="--i:0" type="button" data-open="quiz" aria-haspopup="dialog" data-ev="key.quiz">
         <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-ticket"/></svg>
         <span class="k-n">開始測驗</span>
         <span class="k-s">能力健檢<i class="sep">・</i>職涯定位</span>
         <svg class="i k-go" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
       </button>
-      <button class="k obs" style="--i:1" type="button" data-open="study" aria-haspopup="dialog">
+      <button class="k obs" style="--i:1" type="button" data-open="study" aria-haspopup="dialog" data-ev="key.study">
         <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg>
         <span class="k-n">前往上課</span>
         <span class="k-s">正式入學<i class="sep">・</i>先體驗</span>
         <svg class="i k-go" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
       </button>
-      <button class="k obs" style="--i:2" type="button" data-open="event" aria-haspopup="dialog" id="k-event">
+      <button class="k obs" style="--i:2" type="button" data-open="event" aria-haspopup="dialog" data-ev="key.event" id="k-event">
         <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-gift"/></svg>
         <span class="k-n">查看活動</span>
         <span class="k-s" id="k-event-s"><span class="gold">五週年慶</span> 剩 <b class="en" id="k-event-d">--</b> 天</span>
         <svg class="i k-go" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
       </button>
-      <button class="k obs" style="--i:3" type="button" data-open="live" aria-haspopup="dialog" id="k-live">
+      <button class="k obs" style="--i:3" type="button" data-open="live" aria-haspopup="dialog" data-ev="key.live" id="k-live">
         <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-live"/></svg>
         <span class="k-n">收看直播</span>
         <span class="k-s" id="k-live-s">下一場 <b class="en">10.25 19:30</b></span>
         <svg class="i k-go" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
       </button>
-      <button class="k obs" style="--i:4" type="button" data-open="follow" aria-haspopup="dialog">
+      <button class="k obs" style="--i:4" type="button" data-open="follow" aria-haspopup="dialog" data-ev="key.follow">
         <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-signal"/></svg>
         <span class="k-n">追蹤動態</span>
         <span class="k-s"><span class="en">IG</span><i class="sep">・</i><span class="en">YouTube</span><i class="sep">・</i><span class="en">PODCAST</span></span>
         <svg class="i k-go" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
       </button>
-      <button class="k obs" style="--i:5" type="button" data-open="consult" aria-haspopup="dialog">
+      <button class="k obs" style="--i:5" type="button" data-open="consult" aria-haspopup="dialog" data-ev="key.consult">
         <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg>
         <span class="k-n">預約諮詢</span>
         <span class="k-s">個人<i class="sep">・</i>企業</span>
@@ -139,9 +185,9 @@
   </main>
 
   <footer class="foot">
-    <a class="fl" href="https://line.me/R/ti/p/@52grace" target="_blank" rel="noopener"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-line"/></svg>學院官方 LINE</a>
-    <a class="fl" href="https://lin.ee/klqvSY1" target="_blank" rel="noopener"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-line"/></svg>Sampler 官方 LINE</a>
-    <a class="fl fl-t" href="https://line.me/R/ti/p/@52grace" target="_blank" rel="noopener" aria-label="學院官方 LINE，回覆時間 13:00–16:30"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg>回覆時間 <span class="en">13:00–16:30</span></a>
+    <a class="fl" href="https://line.me/R/ti/p/@52grace" target="_blank" rel="noopener" data-ev="foot.line_academy"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-line"/></svg>學院官方 LINE</a>
+    <a class="fl" href="https://lin.ee/klqvSY1" target="_blank" rel="noopener" data-ev="foot.line_sampler"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-line"/></svg>Sampler 官方 LINE</a>
+    <a class="fl fl-t" href="https://line.me/R/ti/p/@52grace" target="_blank" rel="noopener" data-ev="foot.reply_time" aria-label="學院官方 LINE，回覆時間 13:00–16:30"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg>回覆時間 <span class="en">13:00–16:30</span></a>
   </footer>
 </div>
 
@@ -175,33 +221,40 @@
     </div>
   </section>
 
+  <!-- 儀式卡（撕票後滑出）：測驗前登入 → 開始作答；內容由 gate.js 依登入狀態繪製 -->
+  <section class="sheet rite" id="s-rite" role="dialog" aria-modal="true" aria-labelledby="rite-kind rite-h" hidden>
+    <div class="grab" aria-hidden="true"></div>
+    <header class="sh-top"><div class="rite-tk"><span class="stamp" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-check"/></svg></span><span class="rite-tk-t"><b id="rite-kind">能力健檢</b><small id="rite-meta"><span class="en">14</span> 題・約 <span class="en">3</span> 分鐘</small></span><span class="iss en" aria-hidden="true">G.R.A.C.E</span></div><button class="bead round x" type="button" data-close aria-label="關閉"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button></header>
+    <div class="sh-body" id="rite-body"><h2 class="rite-h" id="rite-h">接下來所有作答都沒有標準答案，<wbr>請誠實作答！</h2></div>
+  </section>
+
   <!-- 前往上課 -->
   <section class="sheet" id="s-study" role="dialog" aria-modal="true" aria-labelledby="s-study-h" hidden>
     <div class="grab" aria-hidden="true"></div>
     <header class="sh-top"><h2 id="s-study-h">前往上課</h2><button class="bead round x" type="button" data-close aria-label="關閉"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button></header>
     <div class="sh-body">
       <div class="seg" role="tablist" aria-label="上課方式">
-        <button role="tab" id="t-acad" aria-controls="p-acad" aria-selected="true" type="button">正式入學</button>
-        <button role="tab" id="t-samp" aria-controls="p-samp" aria-selected="false" tabindex="-1" type="button">先體驗</button>
+        <button role="tab" id="t-acad" aria-controls="p-acad" aria-selected="true" type="button" data-ev="study.tab.academy">正式入學</button>
+        <button role="tab" id="t-samp" aria-controls="p-samp" aria-selected="false" tabindex="-1" type="button" data-ev="study.tab.sampler">先體驗</button>
       </div>
       <p class="note">學院與 Sampler 為不同網站、不同帳號</p>
 
       <div class="pane" id="p-acad" role="tabpanel" aria-labelledby="t-acad">
         <p class="brand"><img src="assets/img/logo-academy-mark.webp" width="122" height="136" alt="" decoding="async"><span class="en">G.R.A.C.E Academy</span></p>
         <ol class="flow" style="--n:3"><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-userplus"/></svg></i><span class="sl">註冊帳號</span></span></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-scan"/></svg></i><span class="sl">通過真人驗證</span></span></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-wallet"/></svg></i><span class="sl">完成首次儲值</span><span class="sn"><span class="en">10</span>萬・開通打底層</span></span></li></ol>
-        <a class="cta cta-main gl gl-ink" href="https://www.graceschool.com.tw/" target="_blank" rel="noopener"><span>前往學院官網</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+        <a class="cta cta-main gl gl-ink" href="https://www.graceschool.com.tw/" target="_blank" rel="noopener" data-ev="study.academy.site"><span>前往學院官網</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
       </div>
 
       <div class="pane" id="p-samp" role="tabpanel" aria-labelledby="t-samp" hidden>
         <p class="brand brand-s"><img src="assets/img/logo-sampler-engraved.webp" width="776" height="105" alt="G.R.A.C.E Sampler" decoding="async"></p>
         <ol class="flow" style="--n:3"><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-login"/></svg></i><span class="sl">登入 Sampler</span><span class="sn">LINE／Google</span></span></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-cart"/></svg></i><span class="sl">選購課程</span></span></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-card"/></svg></i><span class="sl">完成結帳</span></span></li></ol>
         <ul class="spec spec-links">
-          <li><a href="https://gracesampler.com/courses/%e5%b0%88%e5%b1%acsampler%e6%99%ba%e5%9b%8a%e7%ab%99%e5%ad%a3%e5%ba%a6%e6%b7%b1%e8%ab%87%e6%97%a5/" target="_blank" rel="noopener"><span class="t">季度深談日</span><span class="p en"><em>NT$</em>7,777</span><span class="bead mini"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
-          <li><a href="https://gracesampler.com/courses/%e6%b1%ba%e7%ad%96%e5%ba%95%e5%b1%a4%e9%82%8f%e8%bc%af%e5%be%9e%e7%a0%b4%e8%a7%a3%e9%80%83%e9%81%bf%e6%85%a3%e6%80%a7%e5%88%b0%e7%9f%a5%e8%a1%8c%e5%90%88%e4%b8%80%e7%9a%84%e5%88%a4%e6%96%b7%e6%a1%86/" target="_blank" rel="noopener"><span class="t">決策底層邏輯</span><span class="p en"><em>NT$</em>6,888</span><span class="bead mini"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
-          <li><a href="https://gracesampler.com/courses/%e5%ad%b8%e7%bf%92%e9%ab%98%e7%b4%9a%e5%a5%97%e7%b5%84%e5%be%9e%e5%9f%b7%e8%a1%8c%e8%80%85%e5%88%b0%e4%bd%88%e5%b1%80%e8%80%85/" target="_blank" rel="noopener"><span class="t">從執行者到佈局者</span><span class="p en"><em>NT$</em>31,688</span><span class="bead mini"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
+          <li><a href="https://gracesampler.com/courses/%e5%b0%88%e5%b1%acsampler%e6%99%ba%e5%9b%8a%e7%ab%99%e5%ad%a3%e5%ba%a6%e6%b7%b1%e8%ab%87%e6%97%a5/" target="_blank" rel="noopener" data-ev="study.sampler.course1"><span class="t">季度深談日</span><span class="p en"><em>NT$</em>7,777</span><span class="bead mini"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
+          <li><a href="https://gracesampler.com/courses/%e6%b1%ba%e7%ad%96%e5%ba%95%e5%b1%a4%e9%82%8f%e8%bc%af%e5%be%9e%e7%a0%b4%e8%a7%a3%e9%80%83%e9%81%bf%e6%85%a3%e6%80%a7%e5%88%b0%e7%9f%a5%e8%a1%8c%e5%90%88%e4%b8%80%e7%9a%84%e5%88%a4%e6%96%b7%e6%a1%86/" target="_blank" rel="noopener" data-ev="study.sampler.course2"><span class="t">決策底層邏輯</span><span class="p en"><em>NT$</em>6,888</span><span class="bead mini"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
+          <li><a href="https://gracesampler.com/courses/%e5%ad%b8%e7%bf%92%e9%ab%98%e7%b4%9a%e5%a5%97%e7%b5%84%e5%be%9e%e5%9f%b7%e8%a1%8c%e8%80%85%e5%88%b0%e4%bd%88%e5%b1%80%e8%80%85/" target="_blank" rel="noopener" data-ev="study.sampler.course3"><span class="t">從執行者到佈局者</span><span class="p en"><em>NT$</em>31,688</span><span class="bead mini"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
         </ul>
-        <a class="inl" href="https://line.me/ti/g2/q9Ho1w80IazkjowuTPzEmP5IlqsXSFBP3uerFg?utm_source=invitation&amp;utm_medium=link_copy&amp;utm_campaign=default" target="_blank" rel="noopener">購課後可加入【✦Sampler智囊站】<svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></a>
-        <a class="cta cta-main gl gl-ink" href="https://gracesampler.com/" target="_blank" rel="noopener"><span>前往 Sampler</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+        <a class="inl" href="https://line.me/ti/g2/q9Ho1w80IazkjowuTPzEmP5IlqsXSFBP3uerFg?utm_source=invitation&amp;utm_medium=link_copy&amp;utm_campaign=default" target="_blank" rel="noopener" data-ev="study.sampler.group">購課後可加入【✦Sampler智囊站】<svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></a>
+        <a class="cta cta-main gl gl-ink" href="https://gracesampler.com/" target="_blank" rel="noopener" data-ev="study.sampler.site"><span>前往 Sampler</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
       </div>
     </div>
   </section>
@@ -223,12 +276,12 @@
           <div><dt>開始</dt><dd class="en" id="cp-start">2026.10.12 21:00</dd></div>
           <div><dt>截止</dt><dd class="en" id="cp-end">2026.11.12 23:59</dd></div>
         </dl>
-        <a class="cta cta-main gl gl-ink" id="cp-go" href="https://grace-5th.pages.dev" target="_blank" rel="noopener"><span class="lbl">進入活動</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+        <a class="cta cta-main gl gl-ink" id="cp-go" href="https://grace-5th.pages.dev" target="_blank" rel="noopener" data-ev="event.go"><span class="lbl">進入活動</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
       </div>
       <div class="ev-none" id="ev-off" hidden>
         <p class="empty">目前無進行中活動</p>
         <p class="note">新活動公告於校長 IG</p>
-        <a class="cta cta-main gl gl-ink" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener"><span>前往校長 IG</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+        <a class="cta cta-main gl gl-ink" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener" data-ev="event.ig"><span>前往校長 IG</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
       </div>
     </div>
   </section>
@@ -244,8 +297,8 @@
         <p class="lv-more" id="lv-more" hidden></p>
       </div>
       <p class="lv-empty" id="lv-empty" hidden>直播時間公告於校長 IG</p>
-      <ol class="flow" style="--n:2" id="lv-flow"><li id="lv-cal-li"><a class="st st-link" id="live-cal" href="https://calendar.google.com/calendar/render" target="_blank" rel="noopener"><i class="sw bead" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-cal"/></svg></i><span class="sl">加入行事曆<svg class="i ar" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-ig"/></svg></i><span class="sl">進入校長 IG</span></span></li></ol>
-      <a class="cta cta-main gl gl-ink" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener"><span>前往校長 IG</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+      <ol class="flow" style="--n:2" id="lv-flow"><li id="lv-cal-li"><a class="st st-link" id="live-cal" href="https://calendar.google.com/calendar/render" target="_blank" rel="noopener" data-ev="live.calendar"><i class="sw bead" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-cal"/></svg></i><span class="sl">加入行事曆<svg class="i ar" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-ig"/></svg></i><span class="sl">進入校長 IG</span></span></li></ol>
+      <a class="cta cta-main gl gl-ink" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener" data-ev="live.ig"><span>前往校長 IG</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
     </div>
   </section>
 
@@ -255,11 +308,11 @@
     <header class="sh-top"><h2 id="s-follow-h">追蹤動態</h2><button class="bead round x" type="button" data-close aria-label="關閉"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button></header>
     <div class="sh-body">
       <ul class="chs">
-        <li><a class="chr" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-ig"/></svg><span class="ct"><b>校長 IG</b><span class="en">@grace.wwwwwwww</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
-        <li><a class="chr" href="https://www.instagram.com/g.r.a.c.e_official/" target="_blank" rel="noopener"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-ig"/></svg><span class="ct"><b>官方 IG</b><span class="en">@g.r.a.c.e_official</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
-        <li><a class="chr" href="https://www.youtube.com/@g.r.a.c.eofficial5737" target="_blank" rel="noopener"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-yt"/></svg><span class="ct"><b>YouTube</b><span>給芮迷</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
-        <li id="ch-pod"><a class="chr" id="pc-all" href="https://podcasts.apple.com/tw/podcast/id1659198934" target="_blank" rel="noopener"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg><span class="ct"><b>PODCAST</b><span id="pc-show">我們下課吧</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
-          <a class="pc-latest" id="pc-latest" href="https://podcasts.apple.com/tw/podcast/id1659198934" target="_blank" rel="noopener" hidden><img id="pc-img" src="assets/img/podcast-cover.webp" width="320" height="320" alt="" loading="lazy" decoding="async"><span class="pc-x"><small>最新一集<span class="en" id="pc-meta"></span></small><span class="pc-t" id="pc-title"></span></span><span class="bead round sm play"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-play"/></svg></span></a>
+        <li><a class="chr" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener" data-ev="follow.ig_principal"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-ig"/></svg><span class="ct"><b>校長 IG</b><span class="en">@grace.wwwwwwww</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
+        <li><a class="chr" href="https://www.instagram.com/g.r.a.c.e_official/" target="_blank" rel="noopener" data-ev="follow.ig_official"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-ig"/></svg><span class="ct"><b>官方 IG</b><span class="en">@g.r.a.c.e_official</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
+        <li><a class="chr" href="https://www.youtube.com/@g.r.a.c.eofficial5737" target="_blank" rel="noopener" data-ev="follow.youtube"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-yt"/></svg><span class="ct"><b>YouTube</b><span>給芮迷</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li>
+        <li id="ch-pod"><a class="chr" id="pc-all" href="https://podcasts.apple.com/tw/podcast/id1659198934" target="_blank" rel="noopener" data-ev="follow.podcast"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg><span class="ct"><b>PODCAST</b><span id="pc-show">我們下課吧</span></span><span class="bead round sm"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+          <a class="pc-latest" id="pc-latest" href="https://podcasts.apple.com/tw/podcast/id1659198934" target="_blank" rel="noopener" data-ev="follow.podcast_latest" hidden><img id="pc-img" src="assets/img/podcast-cover.webp" width="320" height="320" alt="" loading="lazy" decoding="async"><span class="pc-x"><small>最新一集<span class="en" id="pc-meta"></span></small><span class="pc-t" id="pc-title"></span></span><span class="bead round sm play"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-play"/></svg></span></a>
         </li>
       </ul>
     </div>
@@ -273,11 +326,11 @@
       <div class="path">
         <h3 class="path-h">學院學員<span class="lv-tag">至尊以上</span></h3>
         <ol class="flow" style="--n:3"><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-login"/></svg></i><span class="sl">登入學院官網</span></span></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-chat"/></svg></i><span class="sl">開啟諮詢專區</span></span></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-tap"/></svg></i><span class="sl">點選預約諮詢</span></span></li></ol>
-        <a class="cta cta-main gl gl-ink" href="https://www.graceschool.com.tw/member/signin" target="_blank" rel="noopener"><span>前往預約</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+        <a class="cta cta-main gl gl-ink" href="https://www.graceschool.com.tw/member/signin" target="_blank" rel="noopener" data-ev="consult.book"><span>前往預約</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
       </div>
       <div class="path path-2">
         <h3 class="path-h">尚未入學</h3>
-        <button class="cta cta-sub gl gl-clear" type="button" data-open="study"><span>先完成正式入學</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></button>
+        <button class="cta cta-sub gl gl-clear" type="button" data-open="study" data-ev="consult.enroll"><span>先完成正式入學</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></button>
       </div>
       <div class="items">
         <h3 class="path-h">諮詢項目<span class="en cnt" id="c-count">11 項</span><span class="unit">30 分鐘／堂</span></h3>
@@ -291,7 +344,8 @@
 <div class="quiz" id="quiz" role="dialog" aria-modal="true" aria-labelledby="qz-title" hidden>
   <div class="qz-shell">
     <header class="qz-top">
-      <h2 class="qz-title" id="qz-title">能力健檢</h2>
+      <div class="qz-head"><h2 class="qz-title" id="qz-title">能力健檢</h2><span class="qz-who" id="qz-who" hidden><span class="av" id="qz-who-av" aria-hidden="true">學</span><span id="qz-who-n">學員</span></span></div>
+      <button class="bead round snd" id="qz-snd" type="button" data-snd="quiz" aria-pressed="false" aria-label="音效開啟，點一下靜音"><svg class="i s-on" aria-hidden="true" focusable="false"><use href="#i-snd"/></svg><svg class="i s-off" aria-hidden="true" focusable="false"><use href="#i-mute"/></svg></button>
       <div class="qz-progress" id="qz-progress" role="progressbar" aria-label="作答進度" aria-valuemin="0" aria-valuemax="14" aria-valuenow="0" hidden>
         <span class="qz-count en" id="qz-count" aria-hidden="true">00 / 14</span>
         <i class="qz-bar" id="qz-bar" aria-hidden="true"></i>
@@ -301,6 +355,18 @@
     <div class="qz-stage" id="qz-stage" aria-live="polite"></div>
   </div>
 </div>
+
+<!-- 前台設定（依 CONTRACT.md）：gas 資料中心網址、lineChannelId、googleClientId、redirectUri（LINE 回呼，帶 ?auth=line）、ipEndpoint
+     內嵌與 data/hub.json 相同的公開值，hub.json 讀取慢或失敗時仍為正式模式；data/hub.json 有值的欄位會覆蓋這裡 -->
+<script type="application/json" id="hub-config">
+{
+  "gas": "https://script.google.com/macros/s/AKfycbwkA7DXKZ6402Y4w6ZBTlzPItLIAmhZ35m5Z6UhI1zbDMZqr1TLKrvAs3kgxtBDmV0_hQ/exec",
+  "lineChannelId": "2012159958",
+  "googleClientId": "1085612071880-reoepmvdmkitbpj8nnq6s1m6l1ag3c2a.apps.googleusercontent.com",
+  "redirectUri": "https://grace63188.github.io/grace-IG/?auth=line",
+  "ipEndpoint": "https://grace-hub-d8l.pages.dev/api/ip"
+}
+</script>
 
 <!-- 內嵌預設值：data/*.json 讀取失敗時使用 -->
 <script type="application/json" id="fallback">

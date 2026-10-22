@@ -3,8 +3,12 @@
    - 鍵盤：←／→ 上一題／下一題；↑／↓ 在選項間移動；1–4 直接作答；Esc 關閉
    - 結果：雷達圖／六角形生長、名稱逐字浮現；結果卡以 canvas 繪製（IG 限動 9:16）
    - 結果存 localStorage（try/catch），票券入口顯示上次結果
-   - 入口由 ticket.js 接手（撕票儀式後呼叫 open） */
-import { $, $$, reduced, setInert, esc, buzz } from './core.js';
+   - 入口：撕票 → 儀式卡（gate.js）→「開始作答」直接進第一題（未完成者接續）
+   - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝香檳鐘聲；事件：每題作答進度、完成與結果 */
+import { $, $$, reduced, setInert, esc } from './core.js';
+import { sfx } from './sound.js';
+import { track } from './track.js';
+import { submitResult, onResults } from './auth.js';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
@@ -28,6 +32,24 @@ export function loadStore() {
 function saveStore(kind, val) {
   try { const s = loadStore(); s[kind] = val; localStorage.setItem(STORE_KEY, JSON.stringify(s)); return true; } catch (e) { return false; }
 }
+/* 登入回應帶回的歷史結果（資料中心 results）：比本機新才覆蓋，供「上次結果」顯示 */
+export function mergeResults(results) {
+  if (!results || typeof results !== 'object') return;
+  const s = loadStore();
+  let changed = false;
+  const a = results.ability, c = results.career;
+  if (a && Number(a.at) > Number((s.ability && s.ability.at) || 0) && typeof (a.stage || a.label) === 'string') {
+    s.ability = { stage: a.stage || a.label, top: a.top || '', low: a.low || '', at: Number(a.at) }; changed = true;
+  }
+  if (c && Number(c.at) > Number((s.career && s.career.at) || 0) && ROLES.includes(c.primary || c.label)) {
+    s.career = { primary: c.primary || c.label, secondary: c.secondary || '', at: Number(c.at) }; changed = true;
+  }
+  if (!changed) return;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch (e) { /* 無痕模式 */ }
+  paintLast();
+}
+onResults(mergeResults);
+
 export function clearStore() { try { localStorage.removeItem(STORE_KEY); } catch (e) { /* 無痕模式 */ } }
 
 export function lastLabel(kind, s = loadStore()) {
@@ -195,7 +217,7 @@ export function initQuiz({ onEnroll } = {}) {
       <h3 class="q-name">${esc(q.title)}</h3>
       <p class="q-meta">${esc(q.meta)}</p>
       <p class="q-lead">${esc(q.lead)}</p>
-      <button class="start obs" type="button" data-act="start"><span>${resume ? '繼續' : '開始'}</span></button>
+      <button class="start obs" type="button" data-act="start" data-ev="quiz.start" data-ev-meta='{"kind":"${kind}"}'><span>${resume ? '繼續' : '開始'}</span></button>
       <p class="q-hint">${resume ? `已作答 ${s.answers.filter((a) => a != null).length} 題，從上次停下的地方繼續` : '沒有標準答案，選最接近妳平常狀態的那一個'}</p>
     </div>`;
   }
@@ -221,16 +243,16 @@ export function initQuiz({ onEnroll } = {}) {
       <h4 id="qz-end">下一步</h4>
       <div class="toggle seg is-left" role="tablist" aria-label="選擇妳的身分">
         <i class="lever" aria-hidden="true"></i>
-        <button type="button" role="tab" id="qz-tab-0" aria-controls="qz-pane-0" aria-selected="true" tabindex="0">我是學員</button>
-        <button type="button" role="tab" id="qz-tab-1" aria-controls="qz-pane-1" aria-selected="false" tabindex="-1">我還沒入學</button>
+        <button type="button" role="tab" id="qz-tab-0" aria-controls="qz-pane-0" aria-selected="true" tabindex="0" data-ev="quiz.tab.member">我是學員</button>
+        <button type="button" role="tab" id="qz-tab-1" aria-controls="qz-pane-1" aria-selected="false" tabindex="-1" data-ev="quiz.tab.guest">我還沒入學</button>
       </div>
       <div class="pane" role="tabpanel" id="qz-pane-0" aria-labelledby="qz-tab-0">
         <p>測驗結果只是起點，最適合妳的進修路徑，就交給校長親自為妳安排。現在到學員後台，進入「闖關挑戰」→「個人進修」提出申請。</p>
-        <a class="cta cta-main gl gl-ink" href="${SIGNIN}" target="_blank" rel="noopener"><span>前往學員後台</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+        <a class="cta cta-main gl gl-ink" href="${SIGNIN}" target="_blank" rel="noopener" data-ev="quiz.backend"><span>前往學員後台</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
       </div>
       <div class="pane" role="tabpanel" id="qz-pane-1" aria-labelledby="qz-tab-1" hidden>
         <p>想讓校長依照測驗結果安排個人進修課表，第一步是先成為 G.R.A.C.E 學姊。完成註冊、真人驗證，首次儲值 10萬開通打底層後，就可以提出申請。</p>
-        <button class="cta cta-main gl gl-ink" type="button" data-act="enroll"><span>開始入學</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></button>
+        <button class="cta cta-main gl gl-ink" type="button" data-act="enroll" data-ev="quiz.enroll"><span>開始入學</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></button>
       </div>
     </section>`;
   }
@@ -239,7 +261,7 @@ export function initQuiz({ onEnroll } = {}) {
     return `<section class="rcard" aria-labelledby="qz-card">
       <h4 id="qz-card">結果卡</h4>
       <div class="rcard-img"><img id="qz-card-img" alt="" width="1080" height="1920"></div>
-      <button class="cta cta-sub gl gl-clear" type="button" data-act="save"><span>存成圖片</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-down"/></svg></span></button>
+      <button class="cta cta-sub gl gl-clear" type="button" data-act="save" data-ev="quiz.save"><span>存成圖片</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-down"/></svg></span></button>
       <p class="sr-only" id="qz-save-live" aria-live="polite"></p>
     </section>`;
   }
@@ -260,7 +282,7 @@ export function initQuiz({ onEnroll } = {}) {
         ${r.allSame ? '' : `<section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>最強能力・${esc(r.top)}</h4><p>${esc(ABILITY_TEXT[r.top].strong)}</p></section>
         <section class="r-sec"><h4><i class="tag" aria-hidden="true"></i>最需補強・${esc(r.low)}</h4><p>${esc(ABILITY_TEXT[r.low].weak)}</p></section>`}
         ${cardHtml()}${endingHtml()}
-        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>
+        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>
         <p class="r-note">${NOTE}</p></div>
         </div>
       </div>`;
@@ -280,7 +302,7 @@ export function initQuiz({ onEnroll } = {}) {
       <section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>適合方向</h4>${listHtml(P.paths)}</section>
       <section class="r-sec r-second"><h4>副角色・${esc(r.secondary)}</h4><p>${esc(S2.desc)}</p></section>
       ${cardHtml()}${endingHtml()}
-      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>
+      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>
       <p class="r-note">${NOTE}</p></div>
       </div>
     </div>`;
@@ -293,6 +315,7 @@ export function initQuiz({ onEnroll } = {}) {
   }
   function showQ(i, dir = 1) {
     clearTimeout(advT);
+    if (stage.querySelector('.qpage:not(.out) .q-ask')) sfx('flip');
     idx = i; setProgress(i);
     turn(questionHtml(i), dir, (el) => {
       const t = el.querySelector('.opt[tabindex="0"]');
@@ -309,10 +332,17 @@ export function initQuiz({ onEnroll } = {}) {
       : { primary: r.primary, secondary: r.secondary, at: Date.now() };
     saveStore(kind, saved);
     paintLast();
+    track('quiz.complete', 'complete', kind === 'ability'
+      ? { kind, result: r.stage.name, top: r.allSame ? '' : r.top, low: r.allSame ? '' : r.low, total: r.total }
+      : { kind, result: r.primary, secondary: r.secondary });
+    /* 契約 quiz.result：登入中送出；資料中心會自動補 quiz_done 事件 */
+    submitResult(kind === 'ability'
+      ? { kind, at: saved.at, answers: s.answers.slice(), total: r.total, stage: r.stage.name, top: r.allSame ? '' : r.top, low: r.allSame ? '' : r.low, scores: r.scores }
+      : { kind, at: saved.at, answers: s.answers.slice(), primary: r.primary, secondary: r.secondary, counts: r.counts });
     state[kind] = null;                                   /* 完成後清掉作答，下次從頭開始 */
     idx = QUIZ[kind].qs.length; setProgress(idx);
     box.classList.add('done');
-    buzz([18, 40, 28]);
+    sfx('reveal', { delay: motionOK() ? 0.12 : 0 });
     const el = turn(resultHtml(r), 1);
     el.querySelector('.result').classList.add('grow');
     requestAnimationFrame(() => requestAnimationFrame(() => el.querySelector('.result').classList.add('go')));
@@ -346,11 +376,13 @@ export function initQuiz({ onEnroll } = {}) {
       b.tabIndex = on ? 0 : -1;
     });
     const nx = el.querySelector('[data-act="next"]'); if (nx) nx.disabled = false;
-    buzz(8);
+    sfx('pick');
+    const n = QUIZ[kind].qs.length;
+    track('quiz.answer', 'answer', { kind, q: idx + 1, n, k: k + 1, done: s.answers.filter((a) => a != null).length });
     clearTimeout(advT);
     const at = idx;
-    /* 讓「選中填滿」被看見後再翻頁 */
-    advT = setTimeout(() => { if (idx === at) next(); }, motionOK() ? 320 : 200);
+    /* 讓「選中填滿」被看見後再翻頁（分鏡：選定 300ms 後自動翻頁） */
+    advT = setTimeout(() => { if (idx === at) next(); }, motionOK() ? 300 : 200);
   }
   function next() {
     const s = S(); if (!s || idx < 0) return;
@@ -360,7 +392,8 @@ export function initQuiz({ onEnroll } = {}) {
   }
   function prev() { clearTimeout(advT); if (idx > 0) showQ(idx - 1, -1); else if (idx === 0) showIntro(-1); }
 
-  function open(k, from) {
+  /** direct：由儀式卡「開始作答」進入，略過開始頁、直接到第一題（有未完成作答則接續） */
+  function open(k, from, { direct = false } = {}) {
     kind = k; opener = from || document.activeElement;
     title.textContent = QUIZ[k].title;
     box.classList.remove('done');
@@ -370,11 +403,18 @@ export function initQuiz({ onEnroll } = {}) {
     document.documentElement.classList.add('quiz-open');
     setInert(page, true);
     requestAnimationFrame(() => box.classList.add('on'));
-    showIntro(1);
+    const resume = !!(S() && S().answers.some((a) => a != null));
+    track('quiz.open', 'view', { kind, direct, resume });
+    if (!direct) { showIntro(1); return; }
+    if (!S()) state[kind] = { answers: new Array(QUIZ[kind].qs.length).fill(null) };
+    const first = S().answers.findIndex((a) => a == null);
+    showQ(first < 0 ? 0 : first, 1);
   }
   function close() {
     if (box.hidden) return;
     clearTimeout(advT);
+    const s = S(), n = kind ? QUIZ[kind].qs.length : 0;
+    track('quiz.close', 'close', { kind, at: idx < 0 ? 0 : Math.min(idx + 1, n), n, answered: s ? s.answers.filter((a) => a != null).length : (box.classList.contains('done') ? n : 0) });
     box.classList.remove('on');
     document.documentElement.classList.remove('quiz-open');
     setInert(page, false);
@@ -413,8 +453,8 @@ export function initQuiz({ onEnroll } = {}) {
       const s = S(); const first = s.answers.findIndex((a) => a == null);
       return showQ(first < 0 ? 0 : first, 1);
     }
-    if (act === 'prev') return prev();
-    if (act === 'next') return next();
+    if (act === 'prev') { track('quiz.prev', 'click', { kind, q: idx + 1 }); return prev(); }
+    if (act === 'next') { track('quiz.next', 'click', { kind, q: idx + 1 }); return next(); }
     if (act === 'again') { state[kind] = null; box.classList.remove('done'); return showIntro(1); }
     if (act === 'save') return save(b);
     if (act === 'enroll') { close(); if (onEnroll) setTimeout(onEnroll, 60); }

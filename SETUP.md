@@ -5,7 +5,7 @@
 ## 功能概要
 
 - **網站內容**：資源平台簡化版——「現在」即時資訊＋六個入口（開始測驗、前往上課、查看活動、收看直播、追蹤動態、預約諮詢），點開為流程卡片
-- **網站網址**：`https://grace63188.github.io/grace-ig/`
+- **網站網址**：`https://grace63188.github.io/grace-IG/`
 - **PODCAST 更新**：每天台北時間約 06:07 讀取 Apple Podcasts，把最新一集寫入 `data/podcast.json`
 - **直播更新**：每小時第 13 分讀取 Google 日曆，只取標題為「IG直播」的行程，把未來 60 天內最多 5 場寫入 `data/live.json`
 - **變更才提交**：資料沒變時不產生 commit；直播的 commit 訊息固定為「更新 IG直播 時間」
@@ -73,3 +73,15 @@
 - **停用提醒**：公開 repo 連續 60 天沒有 commit 時 GitHub 會停用排程；「排程保持啟用」流程會在第 50 天後自動補空 commit。若仍收到停用通知，到「Actions」點該流程按「Enable workflow」
 - **失敗通知**：排程失敗時 GitHub 會寄信到帳號信箱；可在 GitHub 個人「Settings」→「Notifications」→「Actions」調整
 - **活動與諮詢**：限時活動與諮詢項目在 `data/content.json`，`index.html` 底部的內嵌預設值需同步修改
+
+## 測驗前登入與事件
+
+- **設定檔案**：`data/hub.json`（欄位依資料中心 CONTRACT.md）：`gas`、`lineChannelId`、`googleClientId`、`redirectUri`、`ipEndpoint`；`index.html` 的 `#hub-config` 為內嵌預設值，`data/hub.json` 有值的欄位會覆蓋它
+- **示範模式**：`gas` 留空時自動啟用——登入以模擬帳號「示範學員」完成、事件只存本機佇列不送出，測驗照常可做
+- **LINE 回呼**：`redirectUri` 必須與 LINE Developers 的 Callback URL 完全相同（含 `?auth=line`），路徑大小寫也要與網站網址一致
+- **Google 登入**：Google Cloud「已授權的 JavaScript 來源」填 `https://grace63188.github.io`；按下 Google 登入時才載入 Google 登入元件
+- **登入告知**：登入鍵下方說明取得 LINE／Google 名稱、大頭貼與電子郵件及用途，並連到 `privacy.html`（隱私權政策；LINE 電子郵件權限申請可附此頁與登入畫面截圖）
+- **加入官方 LINE**：學院官方帳號 @52grace 與 LINE Login channel 分屬不同 provider，`bot_prompt` 無法帶出加好友；LINE 登入後改顯示「加入 @52grace」次鍵（新分頁）
+- **本機資料**：裝置 id `gh.did`、訪客 token `gh.vt`、登入者 `gh.person`、事件佇列 `gh.q`、靜音選擇 `grace.snd.v1`
+- **音效**：全部以 Web Audio 即時合成，無外部音檔；首次點擊後才會發聲，右上角可靜音並記住選擇
+- **測試**：`node --test scripts/tests/*.test.mjs` 另含 `track.test.mjs`，檢查每個元素代號都對應到資料中心事件白名單
