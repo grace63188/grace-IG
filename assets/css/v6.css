@@ -244,3 +244,17 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 .sh-top h2:focus-visible{outline:none}
 /* 窄螢幕：小字允許換成兩行，不截斷 */
 @media (max-width:379.98px){ .k-s{white-space:normal;overflow:visible} }
+
+/* 桌機：測驗票券在 520px 卡片內沿用手機的橫式票券（上下排列），不再兩欄並排把票身擠成直排字；字級僅小幅放大 */
+@media (min-width:768px){
+  #s-quiz .tickets{display:flex;flex-direction:column;gap:18px}
+  #s-quiz .ticket{min-height:148px;grid-template-columns:minmax(0,1fr) 104px}
+  #s-quiz .tk-perf{right:101px}
+  #s-quiz .tk-body{padding:22px 24px 22px 28px}
+  #s-quiz .tk-name{font-size:28px;letter-spacing:.14em}
+  #s-quiz .tk-meta{font-size:14px}
+  #s-quiz .tk-meta b{font-size:16px}
+  #s-quiz .tk-go{font-size:18px}
+  #s-quiz .tk-stub svg{width:20px;height:20px}
+  #s-quiz .tk-stamp{width:56px;height:56px;margin-top:-28px;right:22px}
+}

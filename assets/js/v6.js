@@ -3,7 +3,7 @@
    - 活動過 end → 「現在」移除該則；入口鍵退為霧面「目前無進行中活動」，卡片改導向校長 IG；尚未開始則倒數到 start
    - 直播只取 end 未過者；開播中顯示「直播中」並收起「加入行事曆」；全無 → 入口鍵顯示「追蹤校長 IG」
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
-   v7：撕票後滑出儀式卡（測驗前登入）、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
+   v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
 import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js';
 import { initQuiz } from './quiz.js';
@@ -312,7 +312,7 @@ async function start() {
   initSheets();
   initTabs();
   const quiz = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')) });
-  /* 撕票 → 儀式卡（登入）→ 開始作答：收起卡片後直接進第一題；測驗關閉時焦點回到「開始測驗」鍵 */
+  /* 撕票 →（未登入：儀式卡登入）→ 直接進第一題；測驗關閉時焦點回到「開始測驗」鍵 */
   const gate = initGate({
     openSheet, closeSheet,
     startQuiz: (k) => quiz.open(k, $('[data-open="quiz"].k'), { direct: true }),
@@ -322,10 +322,10 @@ async function start() {
     initTracking();
     let ref = ''; try { ref = document.referrer ? new URL(document.referrer).host : ''; } catch (e) { /* 忽略 */ }
     track('page.enter', 'view', { ref });
-    /* 從 LINE／Google 授權頁返回：直接回到儀式卡 */
+    /* 從 LINE 授權頁返回：成功直接進第一題；失敗回到儀式卡並顯示原因 */
     const r = await resumeAuth();
     if (r && r.kind) {
-      if (r.session) { track('auth.success', 'auth', { provider: r.provider, kind: r.kind }); gate.open(r.kind, { state: 'done' }); }
+      if (r.session) { track('auth.success', 'auth', { provider: r.provider, kind: r.kind }); gate.go(r.kind, { fresh: true }); }
       else { track('auth.fail', 'auth', { provider: r.provider || 'line', kind: r.kind, code: r.error }); gate.open(r.kind, { msg: errText(r.error) }); }
     }
   });

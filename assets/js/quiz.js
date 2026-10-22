@@ -3,12 +3,13 @@
    - 鍵盤：←／→ 上一題／下一題；↑／↓ 在選項間移動；1–4 直接作答；Esc 關閉
    - 結果：雷達圖／六角形生長、名稱逐字浮現；結果卡以 canvas 繪製（IG 限動 9:16）
    - 結果存 localStorage（try/catch），票券入口顯示上次結果
-   - 入口：撕票 → 儀式卡（gate.js）→「開始作答」直接進第一題（未完成者接續）
+   - 入口：撕票 →（未登入先在儀式卡登入，gate.js）→ 直接進第一題（未完成者接續）；第一題上方顯示一行作答提醒，不需點按
+   - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝香檳鐘聲；事件：每題作答進度、完成與結果 */
 import { $, $$, reduced, setInert, esc } from './core.js';
 import { sfx } from './sound.js';
 import { track } from './track.js';
-import { submitResult, onResults } from './auth.js';
+import { submitResult, onResults, session } from './auth.js';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
@@ -17,6 +18,8 @@ import {
 export const STORE_KEY = 'grace.quiz.v1';
 const SIGNIN = 'https://www.graceschool.com.tw/member/signin';
 const NOTE = '本結果為自我探索參考，非正式心理測驗。';
+export const OA_URL = 'https://line.me/R/ti/p/@52grace';
+export const RITE_LINE = '接下來所有作答都沒有標準答案，請誠實作答！';
 
 const QUIZ = {
   ability: { title: '能力健檢', meta: '14 題・約 3 分鐘', qs: ABILITY_QUESTIONS,
@@ -174,7 +177,7 @@ export function initQuiz({ onEnroll } = {}) {
   const title = $('#qz-title'), count = $('#qz-count'), bar = $('#qz-bar'), stage = $('#qz-stage'), closeBtn = $('#qz-close');
   const progress = $('#qz-progress');
   const state = { ability: null, career: null };   /* 作答中（未完成）保留於記憶體 */
-  let kind = null, idx = -1, opener = null, advT = 0;
+  let kind = null, idx = -1, opener = null, advT = 0, riteOnce = false;
 
   const motionOK = () => !reduced();
   const S = () => state[kind];
@@ -225,7 +228,9 @@ export function initQuiz({ onEnroll } = {}) {
   function questionHtml(i) {
     const q = QUIZ[kind].qs[i], s = S(), a = s.answers[i], n = QUIZ[kind].qs.length;
     const opts = q.opts.map((o, k) => `<button class="opt${a === k ? ' obs' : ''}" type="button" role="radio" aria-checked="${a === k}" tabindex="${(a == null ? k === 0 : a === k) ? 0 : -1}" data-k="${k}"><i class="pearl" aria-hidden="true"></i><span>${esc(o.t)}</span></button>`).join('');
-    return `<div class="q-ask">
+    const rite = riteOnce && i === 0 ? `<p class="q-rite" role="note">${esc(RITE_LINE)}</p>` : '';
+    riteOnce = false;
+    return `<div class="q-ask">${rite}
       <p class="q-no" aria-hidden="true">第 ${i + 1} 題</p>
       <h3 class="q-text" id="qz-q">${esc(q.q)}</h3>
       <div class="opts${q.opts.length === 2 ? ' two' : ''}" role="radiogroup" aria-labelledby="qz-q">${opts}</div>
@@ -266,6 +271,13 @@ export function initQuiz({ onEnroll } = {}) {
     </section>`;
   }
 
+  /* LINE 登入者：加入學院官方 LINE（新分頁，次鍵，放在結果動作之下） */
+  function addHtml() {
+    const ss = session();
+    if (!ss || ss.src !== 'line') return '';
+    return `<a class="cta cta-sub gl gl-clear cta-add" href="${OA_URL}" target="_blank" rel="noopener" data-ev="rite.line_add"><span class="lbl-l"><span class="lead-ic"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-linef"/></svg></span><span class="lbl">加入 <span class="en">@52grace</span></span></span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-ext"/></svg></span></a>`;
+  }
+
   const nameHtml = (s) => [...s].map((ch, i) => `<span style="--i:${i}">${esc(ch)}</span>`).join('');
 
   function resultHtml(r) {
@@ -282,7 +294,7 @@ export function initQuiz({ onEnroll } = {}) {
         ${r.allSame ? '' : `<section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>最強能力・${esc(r.top)}</h4><p>${esc(ABILITY_TEXT[r.top].strong)}</p></section>
         <section class="r-sec"><h4><i class="tag" aria-hidden="true"></i>最需補強・${esc(r.low)}</h4><p>${esc(ABILITY_TEXT[r.low].weak)}</p></section>`}
         ${cardHtml()}${endingHtml()}
-        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>
+        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}
         <p class="r-note">${NOTE}</p></div>
         </div>
       </div>`;
@@ -302,7 +314,7 @@ export function initQuiz({ onEnroll } = {}) {
       <section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>適合方向</h4>${listHtml(P.paths)}</section>
       <section class="r-sec r-second"><h4>副角色・${esc(r.secondary)}</h4><p>${esc(S2.desc)}</p></section>
       ${cardHtml()}${endingHtml()}
-      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>
+      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}
       <p class="r-note">${NOTE}</p></div>
       </div>
     </div>`;
@@ -392,7 +404,7 @@ export function initQuiz({ onEnroll } = {}) {
   }
   function prev() { clearTimeout(advT); if (idx > 0) showQ(idx - 1, -1); else if (idx === 0) showIntro(-1); }
 
-  /** direct：由儀式卡「開始作答」進入，略過開始頁、直接到第一題（有未完成作答則接續） */
+  /** direct：撕票（登入後）直接進入，略過開始頁、直接到第一題（有未完成作答則接續）；從第一題開始時上方顯示作答提醒 */
   function open(k, from, { direct = false } = {}) {
     kind = k; opener = from || document.activeElement;
     title.textContent = QUIZ[k].title;
@@ -408,6 +420,7 @@ export function initQuiz({ onEnroll } = {}) {
     if (!direct) { showIntro(1); return; }
     if (!S()) state[kind] = { answers: new Array(QUIZ[kind].qs.length).fill(null) };
     const first = S().answers.findIndex((a) => a == null);
+    riteOnce = first <= 0;
     showQ(first < 0 ? 0 : first, 1);
   }
   function close() {

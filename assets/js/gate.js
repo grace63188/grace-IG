@@ -1,21 +1,19 @@
-/* 測驗前關卡：撕票後滑出的儀式卡（登入 → 開始作答）、頂部頭像 chip、靜音鈕
-   儀式卡狀態：
-   - login   未登入：LINE（主）／Google（次）、App 內建瀏覽器提示（IG、Threads、Facebook、LINE 等）、登入告知（取得名稱、大頭貼、電子郵件與用途）＋隱私權政策連結
-   - done    剛登入：登入鍵收合為「名稱・LINE 已登入」，主鍵換成「開始作答」；LINE 登入另附「加入 @52grace」次鍵
-   - welcome 已登入回訪：「歡迎回來，○○」＋上次結果＋開始作答（LINE 登入附「加入 @52grace」）＋切換帳號
-   LINE Login 與官方帳號分屬不同 provider，無法用 bot_prompt 帶出加好友，改以「加入 @52grace」連結取代 */
-import { $, $$, esc, reduced, fmtDate } from './core.js';
+/* 測驗前關卡：撕票後滑出的儀式卡（登入）、頂部頭像 chip、靜音鈕
+   - 未登入：儀式卡顯示 LINE（主）／Google（次）、App 內建瀏覽器提示（IG、Threads、Facebook、LINE 等）、登入告知（取得名稱、大頭貼、電子郵件與用途）＋隱私權政策連結
+   - 登入成功（Google 當下、LINE 授權返回）：收起儀式卡，直接進第一題，不再多一個「開始作答」畫面
+   - 已登入回訪：撕票後直接進第一題
+   - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
+import { $, $$, esc, reduced } from './core.js';
 import { session, login, logout, onAuth, initial, isInApp, inAppName, openInBrowser, copyUrl } from './auth.js';
 import { sfx, isMuted, setMuted, onMute } from './sound.js';
 import { track } from './track.js';
-import { loadStore, lastLabel } from './quiz.js';
+import { OA_URL } from './quiz.js';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最接近平常的那一項就好';
-export const PRIVACY = '登入資料僅用於學員服務，不會公開或轉給第三方';
 export const NOTICE = '登入時會取得你的 LINE／Google 名稱、大頭貼與電子郵件，只用於對應學院學員帳號與提供學習資源，不會公開或轉給第三方。';
 export const PRIVACY_URL = 'privacy.html';
-export const OA_URL = 'https://line.me/R/ti/p/@52grace';
+export { OA_URL };
 const KINDS = { ability: { title: '能力健檢', n: 14, min: 3 }, career: { title: '職涯定位', n: 12, min: 2 } };
 const PROV = { line: 'LINE', google: 'Google' };
 const ERR = {
@@ -39,12 +37,8 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
 
   /* ---------- 儀式卡 ---------- */
   const pLink = () => `<a class="priv-a" href="${PRIVACY_URL}" target="_blank" rel="noopener" data-ev="rite.privacy">隱私權政策</a>`;
-  const priv = () => `<p class="priv">${ic('i-lock')}<span>${PRIVACY}</span>${pLink()}</p>`;
   const notice = () => `<p class="priv priv-note" id="auth-notice">${ic('i-lock')}<span>${NOTICE}${pLink()}</span></p>`;
-  /* LINE 登入後：加入學院官方 LINE（新分頁，不影響作答流程） */
-  const addBtn = (s) => (s && s.src === 'line' ? `<a class="cta cta-sub gl gl-clear cta-add" href="${OA_URL}" target="_blank" rel="noopener" data-ev="rite.line_add"><span class="lbl-l"><span class="lead-ic">${LINE_LOGO}</span><span class="lbl">加入 <span class="en">@52grace</span></span></span><span class="go">${ic('i-ext')}</span></a>` : '');
-  const head = (s) => `${s ? `<p class="rite-wb"><span class="av" aria-hidden="true">${esc(initial(s.name))}</span><span>歡迎回來，<b>${esc(s.name)}</b></span></p>` : ''}
-      <h2 class="rite-h" id="rite-h">${RITE_MAIN.replace('，', '，<wbr>')}</h2>
+  const head = () => `<h2 class="rite-h" id="rite-h">${RITE_MAIN.replace('，', '，<wbr>')}</h2>
       <p class="rite-p">${RITE_SUB}</p>`;
 
   function authHtml(msg = '') {
@@ -58,83 +52,42 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
         <p class="auth-msg" id="auth-msg" role="status" aria-live="polite"${msg ? '' : ' hidden'}>${esc(msg)}</p>
       </div>`;
   }
-  const beginBtn = () => `<button class="cta cta-main gl gl-ink rite-go" type="button" data-act="begin"><span>開始作答</span><span class="go">${ic('i-arrow')}</span></button>`;
-  function doneHtml(s) {
-    return `<div class="rite-slot" id="rite-slot">
-        <div class="wb-last"><span class="av" aria-hidden="true">${esc(initial(s.name))}</span><span class="nm">${esc(s.name)}</span><span class="ok">${ic('i-check')}<span><span class="en">${PROV[s.src] || ''}</span> 已登入</span></span></div>
-        ${beginBtn()}
-        ${addBtn(s)}
-        ${priv()}
-      </div>`;
-  }
-  function lastHtml() {
-    const st = loadStore(), l = lastLabel(kind, st), v = st[kind];
-    if (!l) return '';
-    const at = v && Number(v.at) ? `<span class="en">${fmtDate(Number(v.at))}</span>` : '<span></span>';
-    return `<div class="wb-last wb-prev"><i class="tag" aria-hidden="true"></i><span>上次結果・<b>${esc(l)}</b></span>${at}</div>`;
-  }
-
   let webviewSent = false;
-  function render(state, msg) {
-    const s = session();
+  function render(msg) {
     const k = KINDS[kind];
     $('#rite-kind').textContent = k.title;
     $('#rite-meta').innerHTML = `<span class="en">${k.n}</span> 題・約 <span class="en">${k.min}</span> 分鐘`;
-    sheet.dataset.state = state;
-    if (state === 'welcome' && s) {
-      body.innerHTML = `${head(s)}${lastHtml()}<i class="perf-line" aria-hidden="true"></i>
-        <div class="rite-slot" id="rite-slot">${beginBtn()}${addBtn(s)}<button class="switch" type="button" data-act="switch">不是本人？切換帳號</button></div>`;
-    } else if (state === 'done' && s) {
-      body.innerHTML = `${head(null)}<i class="perf-line" aria-hidden="true"></i>${doneHtml(s)}`;
-    } else {
-      sheet.dataset.state = 'login';
-      body.innerHTML = `${head(null)}<i class="perf-line" aria-hidden="true"></i><div class="rite-slot" id="rite-slot">${authHtml(msg)}${notice()}</div>`;
-      /* 契約：IG 內建瀏覽器偵測到時送一筆 login_fail（google／webview），每次載入一筆 */
-      if (isInApp() && !webviewSent) { webviewSent = true; track('auth.google.blocked', 'view', { kind }); }
-    }
+    sheet.dataset.state = 'login';
+    body.innerHTML = `${head()}<i class="perf-line" aria-hidden="true"></i><div class="rite-slot" id="rite-slot">${authHtml(msg)}${notice()}</div>`;
+    /* 契約：IG 內建瀏覽器偵測到時送一筆 login_fail（google／webview），每次載入一筆 */
+    if (isInApp() && !webviewSent) { webviewSent = true; track('auth.google.blocked', 'view', { kind }); }
   }
 
-  /** 撕票後呼叫：從「開始測驗」卡片換成儀式卡 */
-  function open(k, { msg, state } = {}) {
+  /** 已登入（含剛登入、LINE 返回）：收起儀式卡，直接進第一題 */
+  function go(k, { fresh = false } = {}) {
+    kind = KINDS[k] ? k : kind;
+    busy = false;
+    track('rite.start', 'click', { kind, auto: true, fresh });
+    closeSheet(true);
+    startQuiz(kind);
+  }
+
+  /** 撕票後呼叫：已登入直接進第一題；未登入換成儀式卡（登入） */
+  function open(k, { msg } = {}) {
     kind = KINDS[k] ? k : 'ability';
     busy = false;
-    render(state || (session() ? 'welcome' : 'login'), msg);
+    if (session() && !msg) { go(kind); return; }
+    render(msg);
     openSheet('rite', $('[data-open="quiz"].k'), { ritual: true });
     sfx('crystal');
     track('rite.open', 'view', { kind, state: sheet.dataset.state, inapp: isInApp() });
   }
 
-  /* 登入完成：登入鍵收合 → 名稱列＋開始作答；頭像飛向左上 chip */
-  function toDone(s) {
-    const slot = $('#rite-slot');
-    const swap = () => {
-      sheet.dataset.state = 'done';
-      slot.outerHTML = doneHtml(s);
-      const ns = $('#rite-slot');
-      if (!reduced()) ns.classList.add('enter');
-      fly(ns.querySelector('.av'));
-      setTimeout(() => { const b = ns.querySelector('[data-act="begin"]'); if (b) b.focus({ preventScroll: true }); }, 60);
-    };
+  /* 登入完成：左上 chip 出現，同時收起儀式卡、直接進第一題 */
+  function toDone() {
     sfx('login');
-    if (slot && !reduced()) { slot.classList.add('leave'); setTimeout(swap, 150); }
-    else if (slot) swap();
-  }
-
-  function fly(from) {
-    const to = $('#who-av');
     paintWho(true);
-    if (!from || !to || reduced()) return;
-    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
-    if (!b.width || b.bottom < 0 || b.top > innerHeight) return;
-    const g = from.cloneNode(true);
-    g.className = 'av av-ghost';
-    g.style.cssText = `left:${a.left}px;top:${a.top}px;width:${a.width}px;height:${a.height}px`;
-    document.body.append(g);
-    const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2), sc = b.width / a.width;
-    const an = g.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 1, offset: 0.85 }, { transform: `translate(${dx}px,${dy}px) scale(${sc})`, opacity: 0 }],
-      { duration: 280, easing: 'cubic-bezier(0.77,0,0.175,1)', fill: 'forwards' });
-    an.onfinish = () => g.remove();
-    setTimeout(() => g.remove(), 600);
+    go(kind, { fresh: true });
   }
 
   function setMsg(text) {
@@ -171,7 +124,7 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
       });
       track('auth.success', 'auth', { provider, kind, demo: !!s.demo });
       busy = false;
-      toDone(s);
+      toDone();
     } catch (e) {
       busy = false;
       const code = (e && e.code) || 'error';
@@ -209,19 +162,6 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
     if (b.dataset.provider) return doLogin(b);
     const act = b.dataset.act;
     if (act === 'ext') return ext(b);
-    if (act === 'begin') {
-      track('rite.start', 'click', { kind });
-      closeSheet(true);
-      startQuiz(kind);
-      return;
-    }
-    if (act === 'switch') {
-      track('rite.switch', 'click', { kind });
-      logout();
-      render('login');
-      const s = $('#rite-slot'); if (s && !reduced()) s.classList.add('enter');
-      setTimeout(() => { const l = $('[data-provider="line"]', body); if (l) l.focus({ preventScroll: true }); }, 40);
-    }
   });
 
   /* ---------- 頂部頭像 chip ---------- */
@@ -274,5 +214,5 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
   onMute(paintSnd);
   paintSnd(isMuted());
 
-  return { open, render, paintWho };
+  return { open, go, render, paintWho };
 }
