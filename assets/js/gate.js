@@ -5,16 +5,16 @@
        Android：「用 Chrome 開啟」（intent://，附 browser_fallback_url）＋同一則選單說明
        LINE 內建：「用瀏覽器開啟」（openExternalBrowser=1）單一按鈕；按下後約 1.5 秒頁面仍在前景 → 顯示選單說明
        說明顯示期間目前網址改為 ?go=login（見 auth.markLoginUrl），由 App 選單開到瀏覽器時略過開場、直接到登入卡；卡片收起時還原
-   - 登入成功（Google 當下、LINE 授權返回）：收起儀式卡，直接進第一題，不再多一個「開始作答」畫面
+   - 登入成功（Google 當下、LINE 授權返回）：收起儀式卡，進入測驗的開始前準備頁（入場券＋「開始」→ 3-2-1 倒數 → 第 1 題，見 quiz.js）
    - LINE 授權返回：資料中心換 token 要 3–10 秒，期間先以 hold(kind) 顯示「LINE 登入中」的儀式卡（鈕停用）；
-     訪客此時撕票只會重畫同一張登入中卡（不會回到可再按一次登入的卡），完成即收起、直接進所選測驗第 1 題
-   - 已登入回訪：撕票後直接進第一題
+     訪客此時撕票只會重畫同一張登入中卡（不會回到可再按一次登入的卡），完成即收起、進所選測驗的準備頁
+   - 已登入回訪：撕票後直接進準備頁
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc } from './core.js?v=20261023g';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023g';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023g';
-import { track } from './track.js?v=20261023g';
-import { OA_URL } from './quiz.js?v=20261023g';
+import { $, $$, esc } from './core.js?v=20261024a';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261024a';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261024a';
+import { track } from './track.js?v=20261024a';
+import { OA_URL } from './quiz.js?v=20261024a';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最接近平常的那一項就好';
@@ -134,7 +134,7 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
     if (isInApp() && !webviewSent) { webviewSent = true; track('auth.google.blocked', 'view', { kind }); }
   }
 
-  /** 已登入（含剛登入、LINE 返回）：收起儀式卡，直接進第一題 */
+  /** 已登入（含剛登入、LINE 返回）：收起儀式卡，進測驗準備頁 */
   function go(k, { fresh = false } = {}) {
     /* 登入中期間訪客改撕另一張票：以最後選的種類為準 */
     kind = pending ? pending.kind : KINDS[k] ? k : kind;
@@ -155,7 +155,7 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
     track('rite.pending', 'view', { kind, provider: 'line' });
   }
 
-  /** 撕票後呼叫：已登入直接進第一題；未登入換成儀式卡（登入）；登入中則維持登入中卡（換成這張票的種類） */
+  /** 撕票後呼叫：已登入直接進準備頁；未登入換成儀式卡（登入）；登入中則維持登入中卡（換成這張票的種類） */
   function open(k, { msg } = {}) {
     kind = KINDS[k] ? k : 'ability';
     if (pending && !msg) {
@@ -173,7 +173,7 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
     track('rite.open', 'view', { kind, state: sheet.dataset.state, inapp: isInApp() });
   }
 
-  /* 登入完成：左上 chip 出現，同時收起儀式卡、直接進第一題 */
+  /* 登入完成：左上 chip 出現，同時收起儀式卡、進測驗準備頁 */
   function toDone() {
     sfx('login');
     paintWho(true);

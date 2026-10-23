@@ -5,6 +5,7 @@
    - 主音軌：70Hz 高通（去除手機喇叭放不出的次低頻）→ 輕壓縮 → 9kHz 低通（去刺耳高頻）
    - 衰減一律指數曲線；一般回饋 ≤0.3s，只有開場與揭曉兩個「主角時刻」允許較長的尾音
    - 開場音效走獨立子音軌，快轉或略過時整組在約 60ms 內淡出（hushIntro）；whoosh／tick 帶聲像（StereoPanner，不支援時置中）
+   - 測驗倒數（cd*）走另一條子音軌：按「開始」時一次排程，略過或關閉時約 40ms 淡出，尚未發聲的節點直接取消（hushCd）
    - 震動：navigator.vibrate（iOS 無此 API 即略過）；與音效一起觸發，靜音不影響震動 */
 
 export const SND_KEY = 'grace.snd.v1';
@@ -12,7 +13,7 @@ const MASTER = 0.22;
 const WET = 0.06;                                   /* 預設殘響送出量：只給一點空間感，讓整組音效像在同一個房間 */
 
 let ctx = null, master = null, verbIn = null, noiseBuf = null, unlocked = false;
-let introDry = null, introWet = null;
+let introDry = null, introWet = null, cdB = null;
 let muted = false;
 try { muted = localStorage.getItem(SND_KEY) === 'off'; } catch (e) { /* 預設開啟 */ }
 const subs = new Set();
@@ -115,6 +116,26 @@ export function hushIntro() {
   setTimeout(() => { try { a.disconnect(); b.disconnect(); } catch (e) { /* 已釋放 */ } }, 400);
 }
 
+/* 倒數子音軌：記下所有來源節點，略過時可取消尚未發聲的部分 */
+function cdBus() {
+  if (!cdB) {
+    const dry = ctx.createGain(), wet = ctx.createGain();
+    dry.connect(master); wet.connect(verbIn);
+    cdB = { dry, wet, srcs: [] };
+  }
+  return cdB;
+}
+/** 倒數被略過或測驗關閉：倒數子音軌以 12ms 時間常數淡出（約 40ms 聽不到），排定在之後的聲音全部取消 */
+export function hushCd() {
+  if (!ctx || !cdB) return false;
+  const t = ctx.currentTime, b = cdB;
+  cdB = null;
+  [b.dry, b.wet].forEach((g) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.setTargetAtTime(0, t, 0.012); });
+  b.srcs.forEach((s) => { try { s.stop(t + 0.08); } catch (e) { /* 已停止 */ } });
+  setTimeout(() => { try { b.dry.disconnect(); b.wet.disconnect(); } catch (e) { /* 已釋放 */ } }, 400);
+  return true;
+}
+
 /* ---------- 合成積木 ---------- */
 const EPS = 0.0001;
 function env(g, t, peak, a, d) {
@@ -133,6 +154,7 @@ function tone(t, { f, f2, type = 'sine', peak = 0.4, a = 0.004, d = 0.12, detune
   env(g, t, peak, a, d);
   o.connect(g); send(g, out, wet);
   o.start(t); o.stop(t + a + d + 0.05);
+  if (out.srcs) out.srcs.push(o);
 }
 function noise(t, { dur, peak = 0.3, a = 0.01, type = 'bandpass', f = 1200, f2, q = 0.8, wet = WET, out = mainBus(), buf, at = Math.random() * 0.4 }) {
   const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -142,6 +164,7 @@ function noise(t, { dur, peak = 0.3, a = 0.01, type = 'bandpass', f = 1200, f2, 
   env(g, t, peak, a, Math.max(0.01, dur - a));
   s.connect(fl); fl.connect(g); send(g, out, wet);
   s.start(t, at); s.stop(t + dur + 0.05);
+  if (out.srcs) out.srcs.push(s);
 }
 /* 反向 swell：指數漸強到 dur（越接近結尾衝得越快），結尾 6ms 硬切（蓄力、riser 用） */
 function swell(t, dur, { f, f2, type = 'sine', peak = 0.2, noise: isNoise = false, q = 0.7, detune = 0, wet = WET, out = mainBus() }) {
@@ -169,7 +192,7 @@ function panner(t, dur, pan0, pan1, out) {
   const p = ctx.createStereoPanner();
   p.pan.setValueAtTime(pan0, t); p.pan.linearRampToValueAtTime(pan1, t + dur);
   p.connect(out.dry);
-  return { dry: p, wet: out.wet };
+  return { dry: p, wet: out.wet, srcs: out.srcs };
 }
 /* 撕紙纖維：稀疏脈衝＋細噪，模擬一根根纖維斷開 */
 let tearBuf = null;
@@ -188,6 +211,9 @@ function tearBuffer() {
 
 /* 調性：整組音效共用 E 大調（登入 E5→G#5、揭曉 E–G#–B、開場蓄力 E2→E3、riser E3→E5、Logo shimmer E6），落位六聲取 E 大調五聲音階上行（高八度） */
 export const LAND_HZ = [329.63, 369.99, 415.30, 493.88, 554.37, 659.25];
+/* 測驗倒數：3／2／1 取 E 大調五聲音階上行 G#5→B5→C#6，收束落在主音 E6 */
+export const CD_HZ = [830.61, 987.77, 1108.73];
+export const CD_RESOLVE_HZ = 1318.51;
 
 /* ---------- 音效表（依分鏡） ---------- */
 const FX = {
@@ -248,6 +274,55 @@ const FX = {
   on(t) {
     tone(t, { f: 659.25, peak: 0.08, a: 0.005, d: 0.14, wet: 0.12 });
     tone(t + 0.03, { f: 987.77, peak: 0.05, a: 0.005, d: 0.14, wet: 0.12 });
+  },
+
+  /* ===== 測驗倒數（走倒數子音軌；時間全部由 quiz.js 以同一個音訊時鐘基準排程） ===== */
+  /* 開始鈕化成錶面：絲絨滑出，比 slide 低 6dB */
+  cdSlide(t, o) {
+    noise(t, { dur: 0.3, peak: 0.1, a: 0.07, type: 'lowpass', f: 380, f2: 1100, q: 0.6, out: o });
+    noise(t + 0.02, { dur: 0.24, peak: 0.025, a: 0.06, type: 'bandpass', f: 900, f2: 520, q: 0.9, out: o });
+  },
+  /* 3／2／1：毛氈槌輕敲玻璃鐘片。基音左右各一（±3 cents、聲像 ±0.22）鋪出立體寬度；三角波暖層；×2 與 ×3.98 泛音只留一瞬；
+     2.5ms 柔起＋低通毛氈瞬態（不是硬點擊）；高通氣音短尾左右錯開取樣、交給殘響收尾；全部指數衰減，0.3s 內結束、不與下一聲重疊 */
+  cdTick(t, o, { i = 0 } = {}) {
+    const f = CD_HZ[Math.max(0, Math.min(2, i | 0))];
+    const L = panner(t, 0.4, -0.22, -0.22, o), R = panner(t, 0.4, 0.22, 0.22, o);
+    tone(t, { f, peak: 0.07, a: 0.0025, d: 0.3, detune: -3, wet: 0.1, out: L });
+    tone(t, { f, peak: 0.07, a: 0.0025, d: 0.3, detune: 3, wet: 0.1, out: R });
+    tone(t, { f, type: 'triangle', peak: 0.028, a: 0.002, d: 0.12, wet: 0, out: o });
+    tone(t, { f: f * 2, peak: 0.016, a: 0.0015, d: 0.09, wet: 0.06, out: o });
+    tone(t, { f: f * 3.98, peak: 0.005, a: 0.001, d: 0.035, wet: 0, out: o });
+    noise(t, { dur: 0.016, peak: 0.06, a: 0.0008, type: 'lowpass', f: 2200, q: 0.4, wet: 0, out: o, at: 0.2 + i * 0.03 });
+    noise(t + 0.004, { dur: 0.13, peak: 0.011, a: 0.006, type: 'highpass', f: 6500, q: 0.4, wet: 0.14, out: L, at: 0.5 + i * 0.05 });
+    noise(t + 0.006, { dur: 0.13, peak: 0.011, a: 0.006, type: 'highpass', f: 6500, q: 0.4, wet: 0.14, out: R, at: 0.7 + i * 0.05 });
+  },
+  /* 收束：E6 鐘聲。非諧和泛音（×1、×2、×2.76、×5.4）左右各一聲部、±4 cents 拍頻成 shimmer；
+     底下 E5／G#5／B5 輕撥 40ms 錯開、聲像由左至右；高通閃粒一抹；約 0.7s 指數衰減，殘響 0.2 */
+  cdResolve(t, o) {
+    const F = CD_RESOLVE_HZ, L = panner(t, 0.8, -0.25, -0.25, o), R = panner(t, 0.8, 0.25, 0.25, o);
+    [[1, 0.068, 0.72], [2, 0.015, 0.38], [2.76, 0.0065, 0.22], [5.4, 0.0022, 0.1]].forEach(([r, p, d]) => {
+      tone(t, { f: F * r, peak: p, a: 0.003, d, detune: -4, wet: 0.2, out: L });
+      tone(t + 0.003, { f: F * r, peak: p, a: 0.004, d: d * 0.94, detune: 4, wet: 0.2, out: R });
+    });
+    [[659.25, -0.3], [830.61, 0], [987.77, 0.3]].forEach(([f, pan], k) => {
+      const s = t + k * 0.04, pn = panner(s, 0.6, pan, pan, o);
+      tone(s, { f, peak: 0.034, a: 0.004, d: 0.6 - k * 0.06, wet: 0.2, out: pn });
+      tone(s, { f, type: 'triangle', peak: 0.012, a: 0.003, d: 0.22, wet: 0.1, out: pn });
+    });
+    noise(t, { dur: 0.012, peak: 0.04, a: 0.0008, type: 'lowpass', f: 2600, q: 0.4, wet: 0, out: o, at: 0.33 });
+    noise(t + 0.01, { dur: 0.34, peak: 0.018, a: 0.006, type: 'highpass', f: 7000, f2: 4200, q: 0.5, wet: 0.3, out: o, at: 0.55 });
+  },
+  /* 第 1 題滑入：柔和氣流 whoosh（由右至中，跟著題目滑入的方向），0.26s 先漸強後指數收 */
+  cdWhoosh(t, o) {
+    const pn = panner(t, 0.26, 0.35, 0, o);
+    noise(t, { dur: 0.26, peak: 0.055, a: 0.11, type: 'bandpass', f: 700, f2: 2200, q: 0.9, wet: 0.08, out: pn, at: 0.1 });
+    noise(t, { dur: 0.24, peak: 0.028, a: 0.1, type: 'lowpass', f: 500, f2: 1200, q: 0.4, wet: 0, out: pn, at: 0.4 });
+    noise(t + 0.02, { dur: 0.2, peak: 0.01, a: 0.08, type: 'highpass', f: 5000, q: 0.5, wet: 0.1, out: pn, at: 0.7 });
+  },
+  /* 減少動態：「準備好了」的 E5＋B5 輕柔五度（同 on，走倒數子音軌以便略過時一起淡出） */
+  cdReady(t, o) {
+    tone(t, { f: 659.25, peak: 0.08, a: 0.005, d: 0.14, wet: 0.12, out: o });
+    tone(t + 0.03, { f: 987.77, peak: 0.05, a: 0.005, d: 0.14, wet: 0.12, out: o });
   },
 
   /* ===== 開場（走開場子音軌） ===== */
@@ -317,7 +392,7 @@ const FX = {
 };
 
 /* 震動樣式（Android；iOS 無 API 略過） */
-const BUZZ = { key: 8, tear: [12, 330, 18], login: [10, 40, 10], pick: 6, reveal: [20, 60, 20, 60, 40], introEnter: 10, introCharge: 6, introImpact: 22 };
+const BUZZ = { cdTick: 6, cdResolve: [10, 40, 10], key: 8, tear: [12, 330, 18], login: [10, 40, 10], pick: 6, reveal: [20, 60, 20, 60, 40], introEnter: 10, introCharge: 6, introImpact: 22 };
 export function vibrate(p) { try { if (p && navigator.vibrate) navigator.vibrate(p); } catch (e) { /* 不支援 */ } }
 
 /** 音訊時鐘（秒）：開場以同一個基準排程整組音效，避免逐一呼叫時 currentTime 跨過 render quantum 造成數毫秒漂移 */
@@ -331,7 +406,7 @@ export function sfx(name, { delay = 0, at = null, haptic = true, arg } = {}) {
   const c = ensure();
   if (!c) return false;
   try {
-    const out = name.startsWith('intro') ? introBus() : mainBus();
+    const out = name.startsWith('intro') ? introBus() : name.startsWith('cd') ? cdBus() : mainBus();
     FX[name](at != null ? Math.max(at, c.currentTime) : c.currentTime + 0.005 + delay, out, arg);
     return true;
   } catch (e) { return false; }

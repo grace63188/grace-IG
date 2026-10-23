@@ -419,15 +419,10 @@ html.quiz-open,html.quiz-open body{overflow:hidden}
 .qpage.out.to-l{transform:translateX(-28px)}
 .qpage.out.to-r{transform:translateX(28px)}
 
-/* 開始 */
-.q-intro{display:flex;flex-direction:column;align-items:center;text-align:center;padding:5vh 4px 24px}
-.q-name{font-size:30px;font-weight:500;letter-spacing:.12em;line-height:1.2}
-.q-meta{margin-top:8px;font-size:14px;color:var(--mute);letter-spacing:.06em;font-variant-numeric:tabular-nums}
-.q-lead{margin-top:18px;max-width:28em;font-size:15px;color:var(--ink-2);line-height:1.7;text-wrap:pretty}
+/* 開始（準備頁的黑曜石圓鈕；準備頁其餘樣式見 v7.css） */
 .start{margin-top:40px;width:136px;height:136px;border-radius:50%;display:grid;place-items:center;font-size:18px;font-weight:500;letter-spacing:.3em;padding-left:.3em}
 .start::before{left:16%;right:16%;top:6%;height:42%;border-radius:50%}
 .start span{color:var(--obs-gold)}
-.q-hint{margin-top:26px;font-size:13px;color:var(--mute)}
 
 /* 題目 */
 .q-ask{display:flex;flex-direction:column;gap:18px;padding-bottom:12px}

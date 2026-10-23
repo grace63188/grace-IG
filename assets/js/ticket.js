@@ -1,9 +1,9 @@
 /* 自我測驗票券：點擊、Enter、空白鍵，或把票根往右拖過 44px，都會撕下票根（約 1.2 秒儀式）後滑出儀式卡。
    拖曳只是加分手勢，單擊永遠可用（WCAG 2.5.7）。減少動態時改為約 0.36 秒淡出淡入。
    音效：120ms 紙張撕裂、360ms 印章落下；儀式卡出現的水晶輕敲由 gate.js 播放 */
-import { $$, reduced } from './core.js?v=20261023g';
-import { sfx } from './sound.js?v=20261023g';
-import { track } from './track.js?v=20261023g';
+import { $$, reduced } from './core.js?v=20261024a';
+import { sfx } from './sound.js?v=20261024a';
+import { track } from './track.js?v=20261024a';
 
 const T_TEAR = 1200, T_RM = 360, PULL = 44;
 

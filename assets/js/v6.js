@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023g';
-import { initQuiz } from './quiz.js?v=20261023g';
-import { initTickets } from './ticket.js?v=20261023g';
-import { loadConfig } from './config.js?v=20261023g';
-import { initSound, sfx } from './sound.js?v=20261023g';
-import { initTracking, track } from './track.js?v=20261023g';
-import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023g';
-import { initGate, errText } from './gate.js?v=20261023g';
-import { initIntro } from './intro.js?v=20261023g';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261024a';
+import { initQuiz } from './quiz.js?v=20261024a';
+import { initTickets } from './ticket.js?v=20261024a';
+import { loadConfig } from './config.js?v=20261024a';
+import { initSound, sfx } from './sound.js?v=20261024a';
+import { initTracking, track } from './track.js?v=20261024a';
+import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261024a';
+import { initGate, errText } from './gate.js?v=20261024a';
+import { initIntro } from './intro.js?v=20261024a';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -414,7 +414,7 @@ async function start() {
   initHome();
   let gate = null;
   const quiz = quizApi = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')), onSwitch: (k) => gate && gate.switchAccount(k) });
-  /* 撕票 →（未登入：儀式卡登入）→ 直接進第一題；測驗關閉時焦點回到「開始測驗」鍵 */
+  /* 撕票 →（未登入：儀式卡登入）→ 開始前準備頁 → 3-2-1 倒數 → 第一題；測驗關閉時焦點回到「開始測驗」鍵 */
   gate = initGate({
     openSheet, closeSheet,
     startQuiz: (k) => quiz.open(k, $('[data-open="quiz"].k'), { direct: true }),
@@ -425,8 +425,8 @@ async function start() {
     initTracking();
     let ref = ''; try { ref = document.referrer ? new URL(document.referrer).host : ''; } catch (e) { /* 忽略 */ }
     track('page.enter', 'view', { ref });
-    /* 從 LINE 授權頁返回：資料中心換 token 要數秒，先顯示「登入中」的儀式卡（所選種類），成功直接進第一題；失敗回到儀式卡並顯示原因
-       從 App 內建瀏覽器換到瀏覽器（?go=login）：不等 visitor.me 續期，立刻到登入卡（已登入者直接進第一題） */
+    /* 從 LINE 授權頁返回：資料中心換 token 要數秒，先顯示「登入中」的儀式卡（所選種類），成功進測驗準備頁；失敗回到儀式卡並顯示原因
+       從 App 內建瀏覽器換到瀏覽器（?go=login）：不等 visitor.me 續期，立刻到登入卡（已登入者直接進準備頁） */
     const pl = pendingLine();
     if (pl) gate.hold(pl.kind);
     else if (go) gate.open(go.kind);

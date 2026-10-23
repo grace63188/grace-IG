@@ -8,9 +8,9 @@
    - 只動 transform／opacity（Web Animations API）；動畫結束一律 cancel()，不留任何 inline 樣式
    - 減少動態：不旋轉，只做淡入淡出；Enter 的點擊同時解鎖音效（瀏覽器需要使用者互動才能出聲）
    - 播放中點任一處或按 Enter／Esc：快轉到結尾，開場音效子音軌快速淡出 */
-import { $, $$, reduced, setInert } from './core.js?v=20261023g';
-import { sfx, unlock, hushIntro, clock } from './sound.js?v=20261023g';
-import { track } from './track.js?v=20261023g';
+import { $, $$, reduced, setInert } from './core.js?v=20261024a';
+import { sfx, unlock, hushIntro, clock } from './sound.js?v=20261024a';
+import { track } from './track.js?v=20261024a';
 
 export const INTRO_KEY = 'grace.intro.seen';
 const OLD_KEY = 'grace.intro.v1';                            /* 舊版（每個工作階段一次）的紀錄，僅清除 */

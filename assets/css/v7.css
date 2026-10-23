@@ -200,10 +200,6 @@
 .gsi-hint{font-size:12.5px;color:var(--ink-2);letter-spacing:.04em}
 .gsi-btn{width:100%;display:flex;justify-content:center;min-height:44px}
 
-/* 第一題上方的作答提醒（登入後直接進題時顯示一次）：淡入、不擋操作 */
-.q-rite{margin:0 0 14px;padding:9px 14px;border-radius:14px;box-shadow:var(--dn-sm);font-size:13px;font-weight:500;line-height:1.6;color:var(--ink-2);letter-spacing:.04em;text-align:center;word-break:keep-all;overflow-wrap:break-word;pointer-events:none}
-@media (prefers-reduced-motion:no-preference){ .q-rite{animation:q-rite-in 600ms var(--ease-move,ease-out) both} }
-@keyframes q-rite-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 /* 結果頁：加入學院官方 LINE（LINE 登入者） */
 .r-foot .cta-add{width:100%}
 /* 結果頁「不是你？切換帳號」：安靜的文字連結（觸控高度 44px） */
@@ -329,3 +325,87 @@
 .qz-home{flex:none;width:44px;height:44px;margin:0 -6px 0 -8px;padding-left:8px;justify-content:flex-start}
 .qz-home img{width:24px;height:auto;opacity:.9}
 @media (prefers-reduced-motion:reduce){ .home-link img{transition:opacity var(--t-press) linear} .home-link:active img{transform:none} }
+
+/* =========================================================
+   測驗：開始前準備頁（q-ready）＋3-2-1 倒數（qcd，.cd 已被直播小圓點占用）
+   只沿用既有 token（--clay、--ink*、--champagne、--obs-*、--dn、--ease-*）；動作只走 transform／opacity／filter
+   時間軸由 quiz.js（CD_TL）以 Web Animations 排程；減少動態改為「準備好了」淡入淡出
+   ========================================================= */
+.q-ready{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2vh 0 24px;min-height:calc(100vh - 150px);min-height:calc(100svh - 150px)}
+/* 入場券：撕下票根後的票身（右緣撕痕＋上下缺口），驗票章已蓋上 */
+.pass{position:relative;width:100%;max-width:440px;filter:drop-shadow(6px 8px 9px rgba(140,140,136,.55)) drop-shadow(-6px -6px 9px rgba(255,255,255,.9))}
+.pass-body{position:relative;display:flex;flex-direction:column;justify-content:center;gap:4px;min-height:150px;padding:22px 92px 22px 24px;text-align:left;border-radius:26px 6px 6px 26px;
+  background:linear-gradient(180deg,#F3F3F1,#E1E1DE);background-color:#EBEBE8;box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -2px 4px rgba(0,0,0,.05);
+  -webkit-mask:radial-gradient(circle 12px at 100% 0,#0000 97%,#000 100%) top/100% 51% no-repeat,radial-gradient(circle 12px at 100% 100%,#0000 97%,#000 100%) bottom/100% 51% no-repeat;
+  mask:radial-gradient(circle 12px at 100% 0,#0000 97%,#000 100%) top/100% 51% no-repeat,radial-gradient(circle 12px at 100% 100%,#0000 97%,#000 100%) bottom/100% 51% no-repeat}
+.pass-tear{position:absolute;top:14px;bottom:14px;right:-3px;width:6px;z-index:2;pointer-events:none;background:radial-gradient(circle 3px at 100% 50%,var(--clay) 92%,transparent 100%) 0 0/6px 10px repeat-y}
+.pass .tk-issuer{display:block}
+.pass-name{display:block;margin-top:6px;font-size:34px;font-weight:500;letter-spacing:.16em;line-height:1.15;color:var(--ink)}
+.pass .tk-stamp{opacity:1;transform:scale(1) rotate(-14deg);right:22px;width:58px;height:58px;margin-top:-29px}
+.pass .tk-stamp svg{width:24px;height:24px}
+/* 作答提醒：準備頁唯一的說明句，墨色全濃度 */
+.qr-note{margin-top:34px;max-width:19em;font-size:17px;font-weight:500;line-height:1.7;letter-spacing:.06em;color:var(--ink);word-break:keep-all;overflow-wrap:break-word;text-wrap:balance}
+/* 開始：黑曜石圓鈕坐在霧面凹槽裡（凹槽＝倒數錶圈的前身） */
+.socket{position:relative;margin-top:34px;width:172px;height:172px;border-radius:50%;display:grid;place-items:center;box-shadow:var(--dn)}
+.socket::after{content:"";position:absolute;inset:7px;border-radius:50%;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(184,151,90,.38);transition:box-shadow 150ms var(--ease-out)}
+.socket .start{margin:0;width:136px;height:136px;font-size:19px;transition-property:transform,box-shadow;transition-duration:150ms;transition-timing-function:var(--ease-out)}
+.socket .start:not(:disabled):active,.is-press .socket .start{transform:scale(.96);box-shadow:var(--obs-sink)}
+.is-press .socket .start::before{transform:scaleY(.55);opacity:.5}
+.is-press .socket::after{box-shadow:inset 0 0 0 1.5px rgba(226,203,154,.95),0 0 0 6px rgba(226,203,154,.16)}
+.socket.handoff{visibility:hidden}
+.qr-switch{margin-top:18px}
+.is-press .qr-switch,.is-press .start{pointer-events:none}
+
+/* 倒數層：整層是一顆「略過」按鈕；霧面底沿用開場的放射霧面 */
+.qcd{position:fixed;inset:0;z-index:10}
+.qcd-bg{position:absolute;inset:0;background:radial-gradient(120% 78% at 50% 46%,#F0F0EE 0%,#E7E7E5 44%,#DADAD7 100%);background-color:var(--clay)}
+.qcd-hit{position:absolute;inset:0;display:grid;place-items:center;width:100%;padding:0;border:0;background:none;cursor:pointer;color:var(--ink);font-family:var(--geo);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.qcd-hit:focus{outline:none}
+.qcd-fit{display:block}
+.qcd-stack{display:flex;flex-direction:column;align-items:center;transform-origin:50% 46%}
+.qcd-stack > *{flex:none}
+.qcd-kind{font-size:13px;font-weight:500;letter-spacing:.32em;text-indent:.32em;color:var(--ink-3);margin-bottom:30px}
+.qcd-well{position:relative;width:292px;height:292px;border-radius:50%;display:grid;place-items:center;box-shadow:var(--dn);transform-origin:50% 50%}
+.qcd-hit:focus-visible .qcd-well{box-shadow:var(--dn),0 0 0 3px var(--clay),0 0 0 5px var(--ink-2)}
+.qcd-arc{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.qcd-arc circle{fill:none;stroke-linecap:round}
+.qcd-arc .trk{stroke:rgba(184,151,90,.22);stroke-width:1.5}
+.qcd-arc .sweep{stroke:#C9A96A;stroke-width:4;filter:drop-shadow(0 0 3px rgba(226,203,154,.75))}
+/* 弧頭的香檳珍珠：繞錶圈轉動（rAF 設定角度） */
+.qcd-orbit{position:absolute;inset:0;opacity:0;pointer-events:none}
+.qcd-head{position:absolute;left:50%;top:11px;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;
+  background:radial-gradient(circle at 40% 30%,#F7E9C8,#D7BC84 60%,#A9874A);box-shadow:0 0 0 4px rgba(226,203,154,.2),0 1px 2px rgba(80,60,20,.35)}
+.qcd-dial{position:relative;isolation:isolate;overflow:hidden;width:232px;height:232px;border-radius:50%;display:grid;place-items:center;
+  color:var(--obs-gold);background:var(--obs-glow),var(--obs-flow),var(--obs-body);background-color:#14151B;box-shadow:var(--obs-rim),var(--obs-lift)}
+.qcd-dial::before{content:"";position:absolute;left:16%;right:16%;top:5%;height:42%;z-index:-1;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0))}
+.qcd-sheen{position:absolute;top:-25%;bottom:-25%;left:0;width:42%;pointer-events:none;transform:translateX(-140%) skewX(-18deg);
+  background:linear-gradient(100deg,rgba(255,255,255,0),rgba(226,203,154,.22) 40%,rgba(255,255,255,.45) 50%,rgba(255,255,255,0))}
+.qcd-num{grid-area:1/1;opacity:0;font-family:var(--geo);font-weight:400;font-size:132px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--obs-gold);transform:translateY(-3px)}
+.qcd-word{grid-area:1/1;font-size:22px;font-weight:500;letter-spacing:.34em;padding-left:.34em;color:var(--obs-gold)}
+.qcd-shock{position:absolute;left:50%;top:50%;width:292px;height:292px;margin:-146px 0 0 -146px;border-radius:50%;pointer-events:none;opacity:0;
+  border:1.5px solid rgba(226,203,154,.95);box-shadow:0 0 14px 2px rgba(226,203,154,.5),inset 0 0 10px rgba(255,255,255,.7)}
+.qcd-skip{margin-top:30px;font-size:12.5px;letter-spacing:.12em;color:var(--mute)}
+.qcd-ready{font-size:24px;font-weight:500;letter-spacing:.3em;padding-left:.3em;color:var(--ink)}
+@media (max-height:560px){
+  .qcd-kind{margin-bottom:14px}
+  .qcd-skip{margin-top:14px}
+  .qcd-fit{transform:scale(.82)}
+}
+@media (min-width:768px){
+  .q-ready{min-height:calc(100vh - 170px);min-height:calc(100svh - 170px)}
+  .pass{max-width:520px}
+  .pass-body{min-height:190px;padding:30px 120px 30px 32px}
+  .pass-name{font-size:44px;letter-spacing:.18em}
+  .pass .tk-stamp{width:70px;height:70px;margin-top:-35px;right:30px}
+  .qr-note{font-size:19px;margin-top:40px}
+  .socket{margin-top:40px}
+}
+@media (prefers-reduced-motion:reduce){
+  .socket .start{transition-property:box-shadow}
+  .socket .start:not(:disabled):active,.is-press .socket .start{transform:none}
+  .is-press .socket .start::before{transform:none}
+}
+@media (forced-colors:active){
+  .pass-body,.socket,.qcd-well{border:1px solid CanvasText}
+  .qcd-arc .sweep{stroke:Highlight}
+}

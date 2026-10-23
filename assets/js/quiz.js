@@ -3,23 +3,40 @@
    - 鍵盤：←／→ 上一題／下一題；↑／↓ 在選項間移動；1–4 直接作答；Esc 關閉
    - 結果：雷達圖／六角形生長、名稱逐字浮現；結果卡以 canvas 繪製（IG 限動 9:16）
    - 結果存 localStorage（try/catch），票券入口顯示上次結果
-   - 入口：撕票 →（未登入先在儀式卡登入，gate.js）→ 直接進第一題（未完成者接續）；第一題上方顯示一行作答提醒，不需點按
+   - 入口：撕票 →（未登入先在儀式卡登入，gate.js）→ 開始前準備頁（入場券＋作答提醒＋「開始」）→ 3-2-1 倒數 → 第一題（未完成者接續，按鈕為「繼續」）
+   - 倒數：開始鈕化成錶面、金弧掃描、收束鐘聲，總長 3160ms；點畫面／Enter／空白鍵略過，Esc 關閉；減少動態改為「準備好了」0.6s 淡入淡出
+     畫面（Web Animations＋rAF）與聲音（sound.js cd*）都以按下那一刻為基準一次排程，聲音取同一個音訊時鐘讀數，不逐一漂移
    - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝香檳鐘聲；事件：每題作答進度、完成與結果 */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261023g';
-import { sfx } from './sound.js?v=20261023g';
-import { track } from './track.js?v=20261023g';
-import { submitResult, onResults, session } from './auth.js?v=20261023g';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261024a';
+import { sfx, clock, hushCd } from './sound.js?v=20261024a';
+import { track } from './track.js?v=20261024a';
+import { submitResult, onResults, session } from './auth.js?v=20261024a';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261023g';
+} from './quizdata.js?v=20261024a';
 
 export const STORE_KEY = 'grace.quiz.v1';
 const SIGNIN = 'https://www.graceschool.com.tw/member/signin';
 const NOTE = '本結果為自我探索參考，非正式心理測驗。';
 export const OA_URL = 'https://line.me/R/ti/p/@52grace';
 export const RITE_LINE = '接下來所有作答都沒有標準答案，請誠實作答！';
+
+/* 倒數時間軸（ms，按下「開始」＝0）；規格見 mockup_v12/ready/motion.md */
+export const CD_TL = {
+  press: 150,          /* 0–150 按下：鈕沉 0.96、凹槽金圈亮起 */
+  morph: 300,          /* 150–450 開始鈕移到中央、放大成錶面；準備頁內容 150–300 退場 */
+  beats: [450, 1210, 1970], beat: 760, numIn: 220, numOut: 140, tail: 140,
+  resolve: 2730,       /* 收束：金圈閉合、衝擊環、反光、「開始」回到錶面 */
+  shock: 340, sheen: 380,
+  out: 2850, outDur: 140,  /* 錶面縮至 0.88 並淡出 */
+  q1: 2900,            /* 第 1 題自右滑入（260ms） */
+  done: 3160,          /* 焦點移到第一個選項，倒數層移除 */
+  skipOut: 150, guard: 220,
+};
+export const CD_RM = { fade: 200, chime: 200, hold: 400, q1: 600, done: 760 };
+const EASE_OUT = 'cubic-bezier(0.23,1,0.32,1)', EASE_IN = 'cubic-bezier(0.55,0,1,0.45)';
 
 const QUIZ = {
   ability: { title: '能力健檢', meta: '14 題・約 3 分鐘', qs: ABILITY_QUESTIONS,
@@ -177,7 +194,8 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
   const title = $('#qz-title'), count = $('#qz-count'), bar = $('#qz-bar'), stage = $('#qz-stage'), closeBtn = $('#qz-close');
   const progress = $('#qz-progress');
   const state = { ability: null, career: null };   /* 作答中（未完成）保留於記憶體 */
-  let kind = null, idx = -1, opener = null, advT = 0, riteOnce = false;
+  let kind = null, idx = -1, opener = null, advT = 0, cd = null;
+  const shell = $('.qz-shell', box);
 
   const motionOK = () => !reduced();
   const S = () => state[kind];
@@ -213,24 +231,26 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
     return el;
   }
 
-  function introHtml() {
-    const q = QUIZ[kind], s = S();
-    const resume = s && s.answers.some((a) => a != null);
-    return `<div class="q-intro">
-      <h3 class="q-name">${esc(q.title)}</h3>
-      <p class="q-meta">${esc(q.meta)}</p>
-      <p class="q-lead">${esc(q.lead)}</p>
-      <button class="start obs" type="button" data-act="start" data-ev="quiz.start" data-ev-meta='{"kind":"${kind}"}'><span>${resume ? '繼續' : '開始'}</span></button>
-      <p class="q-hint">${resume ? `已作答 ${s.answers.filter((a) => a != null).length} 題，從上次停下的地方繼續` : '沒有標準答案，選最接近妳平常狀態的那一個'}</p>
+  /* 開始前準備頁：撕下票根後的入場券（驗票章已蓋上）、作答提醒、「開始」、換另一個測驗 */
+  function readyHtml() {
+    const q = QUIZ[kind], s = S(), other = kind === 'ability' ? 'career' : 'ability';
+    const resume = !!(s && s.answers.some((a) => a != null));
+    return `<div class="q-ready">
+      <div class="pass">
+        <div class="pass-body"><span class="tk-issuer en">G.R.A.C.E</span><h3 class="pass-name" id="qz-name">${esc(q.title)}</h3></div>
+        <span class="pass-tear" aria-hidden="true"></span>
+        <span class="tk-stamp" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-check"/></svg></span>
+      </div>
+      <p class="qr-note" id="qz-note">${esc(RITE_LINE)}</p>
+      <div class="socket"><button class="start obs" type="button" data-act="start" aria-describedby="qz-note" data-ev="quiz.start" data-ev-meta='{"kind":"${kind}"}'><span>${resume ? '繼續' : '開始'}</span></button></div>
+      <button class="txt-link qr-switch" type="button" data-act="other" data-ev="quiz.other" data-ev-meta='{"kind":"${other}"}'>換另一個測驗</button>
     </div>`;
   }
 
   function questionHtml(i) {
     const q = QUIZ[kind].qs[i], s = S(), a = s.answers[i], n = QUIZ[kind].qs.length;
     const opts = q.opts.map((o, k) => `<button class="opt${a === k ? ' obs' : ''}" type="button" role="radio" aria-checked="${a === k}" tabindex="${(a == null ? k === 0 : a === k) ? 0 : -1}" data-k="${k}"><i class="pearl" aria-hidden="true"></i><span>${esc(o.t)}</span></button>`).join('');
-    const rite = riteOnce && i === 0 ? `<p class="q-rite" role="note">${esc(RITE_LINE)}</p>` : '';
-    riteOnce = false;
-    return `<div class="q-ask">${rite}
+    return `<div class="q-ask">
       <p class="q-no" aria-hidden="true">第 ${i + 1} 題</p>
       <h3 class="q-text" id="qz-q">${esc(q.q)}</h3>
       <div class="opts${q.opts.length === 2 ? ' two' : ''}" role="radiogroup" aria-labelledby="qz-q">${opts}</div>
@@ -301,7 +321,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
         ${r.allSame ? '' : `<section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>最強能力・${esc(r.top)}</h4><p>${esc(ABILITY_TEXT[r.top].strong)}</p></section>
         <section class="r-sec"><h4><i class="tag" aria-hidden="true"></i>最需補強・${esc(r.low)}</h4><p>${esc(ABILITY_TEXT[r.low].weak)}</p></section>`}
         ${cardHtml()}${endingHtml()}
-        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
+        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again" data-ev-meta='{"kind":"${kind}"}'><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
         <p class="r-note">${NOTE}</p></div>
         </div>
       </div>`;
@@ -321,25 +341,197 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
       <section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>適合方向</h4>${listHtml(P.paths)}</section>
       <section class="r-sec r-second"><h4>副角色・${esc(r.secondary)}</h4><p>${esc(S2.desc)}</p></section>
       ${cardHtml()}${endingHtml()}
-      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
+      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again" data-ev-meta='{"kind":"${kind}"}'><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
       <p class="r-note">${NOTE}</p></div>
       </div>
     </div>`;
   }
 
   /* ---------- 流程 ---------- */
-  function showIntro(dir = 1) {
+  /** 開始前準備頁（登入完成、已登入撕票、重新測驗、換另一個測驗）；via 記錄從哪裡進來 */
+  function showReady(dir = 1, via = '') {
+    cdCancel();
+    clearTimeout(advT);
     idx = -1; setProgress(-1);
-    turn(introHtml(), dir, (el) => setTimeout(() => el.querySelector('.start').focus({ preventScroll: true }), 30));
+    turn(readyHtml(), dir, (el) => setTimeout(() => { const b = el.querySelector('.start'); if (b) b.focus({ preventScroll: true }); }, 30));
+    track('quiz.ready', 'view', { kind, via });
   }
-  function showQ(i, dir = 1) {
+  const focusOpt = () => { const t = stage.querySelector('.qpage:not(.out) .opt[tabindex="0"]'); if (t) t.focus({ preventScroll: true }); };
+  function showQ(i, dir = 1, { focus = true } = {}) {
     clearTimeout(advT);
     if (stage.querySelector('.qpage:not(.out) .q-ask')) sfx('flip');
     idx = i; setProgress(i);
-    turn(questionHtml(i), dir, (el) => {
-      const t = el.querySelector('.opt[tabindex="0"]');
-      setTimeout(() => t && t.focus({ preventScroll: true }), 30);
+    turn(questionHtml(i), dir, () => { if (focus) setTimeout(focusOpt, 30); });
+  }
+
+  /* ---------- 3-2-1 倒數 ---------- */
+  const firstOpen = () => { const f = S().answers.findIndex((a) => a == null); return f < 0 ? 0 : f; };
+  const anim = (c, el, kf, o) => { if (!el) return null; const a = el.animate(kf, Object.assign({ fill: 'both' }, o)); c.anims.push(a); return a; };
+  const later = (c, ms, f) => { c.timers.push(setTimeout(f, Math.max(0, ms - (performance.now() - c.t0)))); };
+
+  function cdHtml(rm) {
+    const t = esc(QUIZ[kind].title);
+    if (rm) return `<span class="qcd-bg" aria-hidden="true"></span><button class="qcd-hit" type="button" aria-label="略過，直接開始"><span class="qcd-ready" aria-hidden="true">準備好了</span></button><span class="sr-only" role="status"></span>`;
+    const nums = ['3', '2', '1'].map((n) => `<span class="qcd-num" aria-hidden="true">${n}</span>`).join('');
+    return `<span class="qcd-bg" aria-hidden="true"></span>
+      <button class="qcd-hit" type="button" aria-label="略過倒數，直接開始"><span class="qcd-fit"><span class="qcd-stack">
+        <span class="qcd-kind" aria-hidden="true">${t}</span>
+        <span class="qcd-well" aria-hidden="true">
+          <svg class="qcd-arc" viewBox="0 0 292 292" focusable="false"><circle class="trk" cx="146" cy="146" r="135"/><circle class="sweep" cx="146" cy="146" r="135" stroke-dasharray="0 900"/></svg>
+          <span class="qcd-orbit"><i class="qcd-head"></i></span>
+          <span class="qcd-dial"><span class="qcd-word">開始</span>${nums}<span class="qcd-sheen"></span></span>
+          <i class="qcd-shock"></i>
+        </span>
+        <span class="qcd-skip" aria-hidden="true">輕點畫面，就能直接開始</span>
+      </span></span></button>
+      <span class="sr-only" role="status"></span>`;
+  }
+
+  /** 按下「開始」：一次排程整段倒數（畫面與聲音同一基準），結束時第 1 題自右滑入 */
+  function begin(btn) {
+    if (cd || idx >= 0 || !kind) return;
+    if (!S()) state[kind] = { answers: new Array(QUIZ[kind].qs.length).fill(null) };
+    const first = firstOpen();
+    const ready = btn.closest('.q-ready');
+    const rm = !motionOK() || typeof btn.animate !== 'function';
+    const a0 = clock();                                   /* 唯一一次音訊時鐘讀數：之後所有聲音＝a0＋毫秒 */
+    const c = cd = { t0: performance.now(), rm, first, anims: [], timers: [], raf: 0, q1: false, done: false, el: null, hit: null };
+    const at = (name, ms, arg) => sfx(name, { at: a0 != null ? a0 + ms / 1000 : null, delay: ms / 1000, arg });
+    const L = CD_TL;
+    /* 聲音：按下的輕叩立即發聲（回饋不等排程）；倒數各聲在取得時鐘後立刻以 a0 一次排好，之後的 DOM 工作再久也不會漂移 */
+    sfx('key');
+    if (rm) at('cdReady', CD_RM.chime);
+    else { at('cdSlide', L.press); L.beats.forEach((t, i) => at('cdTick', t, { i })); at('cdResolve', L.resolve); at('cdWhoosh', L.q1); }
+
+    const el = c.el = document.createElement('div');
+    el.className = `qcd${rm ? ' rm' : ''}`;
+    el.innerHTML = cdHtml(rm);
+    box.append(el);
+    c.hit = el.querySelector('.qcd-hit');
+    c.hit.addEventListener('click', () => cdSkip());
+    c.hit.addEventListener('keydown', (e) => { if (e.repeat && (e.key === 'Enter' || e.key === ' ')) e.preventDefault(); });
+    setInert(shell, true);
+    c.hit.focus({ preventScroll: true });
+    const status = el.querySelector('[role="status"]');
+    later(c, 60, () => { status.textContent = rm ? `${QUIZ[kind].title}，準備好了，即將開始第 ${first + 1} 題` : `${QUIZ[kind].title}，3 秒後開始第 ${first + 1} 題`; });
+    ready.classList.add('is-press');
+
+    const bg = el.querySelector('.qcd-bg');
+    if (rm) {
+      /* 減少動態：準備頁淡出、霧面底上「準備好了」淡入 → 停留 → 淡出 → 第 1 題淡入 */
+      const word = el.querySelector('.qcd-ready');
+      if (typeof ready.animate === 'function') {
+        anim(c, ready, [{ opacity: 1 }, { opacity: 0 }], { duration: CD_RM.fade, easing: 'ease-out', fill: 'forwards' });
+        [bg, word].forEach((x) => {
+          anim(c, x, [{ opacity: 0 }, { opacity: 1 }], { duration: CD_RM.fade, easing: 'ease-out', fill: 'backwards' });
+          anim(c, x, [{ opacity: 1 }, { opacity: 0 }], { delay: CD_RM.hold, duration: CD_RM.q1 - CD_RM.hold, easing: 'ease-in', fill: 'forwards' });
+        });
+      }
+      later(c, CD_RM.q1, () => { c.q1 = true; showQ(first, 1, { focus: false }); });
+      later(c, CD_RM.done, () => cdEnd(c));
+      return;
+    }
+
+    /* 0–150 按下（CSS .is-press）；150–300 準備頁其他內容退場 */
+    $$('.pass, .qr-note, .qr-switch', ready).forEach((x) => anim(c, x,
+      [{ opacity: 1, filter: 'blur(0px)', transform: 'translateY(0px)' }, { opacity: 0, filter: 'blur(4px)', transform: 'translateY(-12px)' }],
+      { delay: L.press, duration: 150, easing: EASE_IN, fill: 'forwards' }));
+    /* 150–330 霧面底淡入；錶盤以外的文字 250–450 浮現 */
+    anim(c, bg, [{ opacity: 0 }, { opacity: 1 }], { delay: L.press, duration: 180, easing: EASE_OUT, fill: 'backwards' });
+    $$('.qcd-kind, .qcd-skip', el).forEach((x) => anim(c, x, [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0px)' }],
+      { delay: L.press + 100, duration: 200, easing: EASE_OUT, fill: 'backwards' }));
+    /* 150–450 開始鈕化成錶面：錶圈從凹槽的位置與大小（FLIP）移到中央 */
+    const well = el.querySelector('.qcd-well'), sock = ready.querySelector('.socket');
+    const wr = well.getBoundingClientRect(), sr = sock.getBoundingClientRect();
+    const ps = wr.width / (well.offsetWidth || 1) || 1;  /* 矮螢幕時外層有縮放：位移要換回錶圈自己的座標 */
+    const k = sr.width / (wr.width || 1), dx = (sr.left + sr.width / 2 - (wr.left + wr.width / 2)) / ps, dy = (sr.top + sr.height / 2 - (wr.top + wr.height / 2)) / ps;
+    anim(c, well, [{ opacity: 0 }, { opacity: 1 }], { delay: L.press, duration: 1, fill: 'backwards' });
+    anim(c, well, [{ transform: `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) scale(${k.toFixed(4)})` }, { transform: 'translate(0px,0px) scale(1)' }],
+      { delay: L.press, duration: L.morph, easing: EASE_OUT, fill: 'backwards', composite: 'replace' });
+    const dial = el.querySelector('.qcd-dial');
+    anim(c, dial, [{ transform: 'scale(0.96)' }, { transform: 'scale(1)' }], { delay: L.press, duration: L.morph, easing: EASE_OUT, fill: 'backwards' });
+    later(c, L.press, () => sock.classList.add('handoff'));
+    /* 「開始」150 淡出＋blur，2730 回到錶面 */
+    const W = L.resolve + 220 - L.press;
+    anim(c, el.querySelector('.qcd-word'), [
+      { offset: 0, opacity: 1, filter: 'blur(0px)', transform: 'scale(1)', easing: EASE_IN },
+      { offset: 240 / W, opacity: 0, filter: 'blur(4px)', transform: 'scale(0.96)' },
+      { offset: (L.resolve - L.press) / W, opacity: 0, filter: 'blur(6px)', transform: 'scale(1.08)', easing: EASE_OUT },
+      { offset: 1, opacity: 1, filter: 'blur(0px)', transform: 'scale(1)' },
+    ], { delay: L.press, duration: W });
+    /* 3／2／1：每拍 760ms——220ms 入場（1.16→1、blur 8→0），最後 140ms 退場（→0.92、blur 4） */
+    $$('.qcd-num', el).forEach((n, i) => {
+      anim(c, n, [
+        { offset: 0, opacity: 0, filter: 'blur(8px)', transform: 'translateY(-3px) scale(1.16)', easing: EASE_OUT },
+        { offset: L.numIn / L.beat, opacity: 1, filter: 'blur(0px)', transform: 'translateY(-3px) scale(1)' },
+        { offset: (L.beat - L.numOut) / L.beat, opacity: 1, filter: 'blur(0px)', transform: 'translateY(-3px) scale(1)', easing: EASE_IN },
+        { offset: 1, opacity: 0, filter: 'blur(4px)', transform: 'translateY(-3px) scale(0.92)' },
+      ], { delay: L.beats[i], duration: L.beat });
     });
+    /* 2730 收束：衝擊環外擴、反光掠過；2850 錶面縮小淡出、霧面底淡出 */
+    anim(c, el.querySelector('.qcd-shock'), [{ opacity: 0.9, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.45)' }], { delay: L.resolve, duration: L.shock, easing: EASE_OUT, fill: 'forwards' });
+    anim(c, el.querySelector('.qcd-sheen'), [{ transform: 'translateX(-140%) skewX(-18deg)' }, { transform: 'translateX(330%) skewX(-18deg)' }], { delay: L.resolve, duration: L.sheen, easing: 'cubic-bezier(.3,0,.2,1)', fill: 'forwards' });
+    anim(c, el.querySelector('.qcd-stack'), [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.88)' }], { delay: L.out, duration: L.outDur, easing: EASE_IN, fill: 'forwards' });
+    anim(c, bg, [{ opacity: 1 }, { opacity: 0 }], { delay: L.out, duration: L.outDur, easing: EASE_IN, fill: 'forwards' });
+    later(c, L.q1, () => { c.q1 = true; showQ(first, 1, { focus: false }); });
+    later(c, L.done, () => cdEnd(c));
+    /* 金弧：進度指示，線性掃一圈；每拍最後 140ms 由尾端收回（最後一拍不收、直接閉合） */
+    const sweep = el.querySelector('.sweep'), orbit = el.querySelector('.qcd-orbit'), C = 2 * Math.PI * 135;
+    const draw = () => {
+      if (cd !== c) return;
+      const e = performance.now() - c.t0;
+      let h = 0, tl = 0;
+      if (e >= L.resolve) h = 1;
+      else if (e >= L.beats[0]) {
+        const i = Math.min(2, Math.floor((e - L.beats[0]) / L.beat)), b = L.beats[i];
+        h = Math.min(1, (e - b) / L.beat);
+        const r = i < 2 ? Math.max(0, Math.min(1, (e - (b + L.beat - L.tail)) / L.tail)) : 0;
+        tl = r * r * r;                                   /* ease-in：收回越來越快 */
+        h = Math.max(h, tl);
+      }
+      sweep.setAttribute('stroke-dasharray', `${((h - tl) * C).toFixed(2)} ${C.toFixed(2)}`);
+      sweep.setAttribute('stroke-dashoffset', (-tl * C).toFixed(2));
+      orbit.style.transform = `rotate(${(h * 360).toFixed(2)}deg)`;
+      orbit.style.opacity = h > 0 && h < 1 ? '1' : '0';
+      if (e < L.out + L.outDur) c.raf = requestAnimationFrame(draw);
+    };
+    c.raf = requestAnimationFrame(draw);
+  }
+
+  /** 倒數結束：移除倒數層、恢復可操作，焦點到第一個選項 */
+  function cdEnd(c) {
+    if (cd !== c) return;
+    cd = null;
+    c.timers.forEach(clearTimeout); cancelAnimationFrame(c.raf);
+    c.el.remove();
+    setInert(shell, false);
+    focusOpt();
+  }
+  /** 略過：倒數子音軌立即淡出（不播收束鐘聲），倒數層 150ms 淡出，第 1 題立即滑入 */
+  function cdSkip() {
+    const c = cd;
+    if (!c || c.skipped) return;
+    const e = performance.now() - c.t0;
+    if (e < CD_TL.guard) return;                          /* 連點「開始」的第二下不算略過 */
+    c.skipped = true;
+    c.timers.forEach(clearTimeout); c.timers = [];
+    cancelAnimationFrame(c.raf);
+    hushCd();
+    track('quiz.skip', 'view', { kind });
+    c.el.style.pointerEvents = 'none';
+    if (typeof c.el.animate === 'function') c.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CD_TL.skipOut, easing: EASE_IN, fill: 'forwards' });
+    if (!c.q1) { c.q1 = true; sfx('cdWhoosh'); showQ(c.first, 1, { focus: false }); }
+    later(c, e + CD_TL.skipOut, () => cdEnd(c));
+  }
+  /** 關閉測驗或重畫準備頁：直接拆掉倒數（不留聲音） */
+  function cdCancel() {
+    const c = cd;
+    if (!c) return;
+    cd = null;
+    c.timers.forEach(clearTimeout); cancelAnimationFrame(c.raf);
+    hushCd();
+    c.el.remove();
+    setInert(shell, false);
   }
   function finish() {
     clearTimeout(advT);
@@ -409,10 +601,11 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
     if (idx >= QUIZ[kind].qs.length - 1) { if (s.answers.every((a) => a != null)) finish(); else showQ(s.answers.findIndex((a) => a == null)); return; }
     showQ(idx + 1, 1);
   }
-  function prev() { clearTimeout(advT); if (idx > 0) showQ(idx - 1, -1); else if (idx === 0) showIntro(-1); }
+  function prev() { clearTimeout(advT); if (idx > 0) showQ(idx - 1, -1); }
 
-  /** direct：撕票（登入後）直接進入，略過開始頁、直接到第一題（有未完成作答則接續）；從第一題開始時上方顯示作答提醒 */
+  /** 開啟測驗：一律先到開始前準備頁（direct＝登入完成或已登入撕票，記錄用）；有未完成作答時按鈕為「繼續」 */
   function open(k, from, { direct = false } = {}) {
+    cdCancel();
     kind = k; opener = from || document.activeElement;
     title.textContent = QUIZ[k].title;
     box.classList.remove('done');
@@ -424,14 +617,20 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
     requestAnimationFrame(() => box.classList.add('on'));
     const resume = !!(S() && S().answers.some((a) => a != null));
     track('quiz.open', 'view', { kind, direct, resume });
-    if (!direct) { showIntro(1); return; }
-    if (!S()) state[kind] = { answers: new Array(QUIZ[kind].qs.length).fill(null) };
-    const first = S().answers.findIndex((a) => a == null);
-    riteOnce = first <= 0;
-    showQ(first < 0 ? 0 : first, 1);
+    showReady(1, direct ? 'direct' : 'open');
+  }
+  /** 準備頁「換另一個測驗」：同一個覆蓋層換成另一種測驗的準備頁 */
+  function switchKind() {
+    const k = kind === 'ability' ? 'career' : 'ability';
+    kind = k;
+    title.textContent = QUIZ[k].title;
+    box.dataset.kind = k;
+    track('quiz.open', 'view', { kind, direct: false, resume: !!(S() && S().answers.some((a) => a != null)), via: 'switch' });
+    showReady(1, 'switch');
   }
   function close() {
     if (box.hidden) return;
+    cdCancel();
     clearTimeout(advT);
     const s = S(), n = kind ? QUIZ[kind].qs.length : 0;
     track('quiz.close', 'close', { kind, at: idx < 0 ? 0 : Math.min(idx + 1, n), n, answered: s ? s.answers.filter((a) => a != null).length : (box.classList.contains('done') ? n : 0) });
@@ -468,14 +667,11 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
     if (b.classList.contains('opt')) return answer(Number(b.dataset.k));
     if (b.getAttribute('role') === 'tab') return selectTab(b);
     const act = b.dataset.act;
-    if (act === 'start') {
-      if (!S()) state[kind] = { answers: new Array(QUIZ[kind].qs.length).fill(null) };
-      const s = S(); const first = s.answers.findIndex((a) => a == null);
-      return showQ(first < 0 ? 0 : first, 1);
-    }
+    if (act === 'start') return begin(b);
+    if (act === 'other') return switchKind();
     if (act === 'prev') { track('quiz.prev', 'click', { kind, q: idx + 1 }); return prev(); }
     if (act === 'next') { track('quiz.next', 'click', { kind, q: idx + 1 }); return next(); }
-    if (act === 'again') { state[kind] = null; box.classList.remove('done'); return showIntro(1); }
+    if (act === 'again') { state[kind] = null; box.classList.remove('done'); return showReady(1, 'again'); }
     if (act === 'save') return save(b);
     if (act === 'enroll') { close(); if (onEnroll) setTimeout(onEnroll, 60); }
     if (act === 'switch') { const k = kind; close(); if (onSwitch) setTimeout(() => onSwitch(k), 60); }
@@ -493,6 +689,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
 
   box.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    if (cd) { if (e.key === 'Tab') { e.preventDefault(); if (cd.hit) cd.hit.focus(); } return; }   /* 倒數中焦點留在倒數層 */
     if (e.key === 'Tab') {                            /* 焦點留在覆蓋層內 */
       const f = $$('button:not([disabled]),a[href],[tabindex="0"],[tabindex="-1"].r-big', box).filter((x) => x.offsetParent !== null && !x.closest('.out') && !x.closest('[hidden]') && x.tabIndex >= 0);
       if (!f.length) return;
@@ -523,5 +720,5 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
 
   $$('[data-quiz]').forEach((b) => b.addEventListener('click', () => open(b.dataset.quiz, b)));
   paintLast();
-  return { open, close, answer, next, prev, state: () => ({ kind, idx }) };
+  return { open, close, answer, next, prev, skip: cdSkip, state: () => ({ kind, idx, cd: !!cd }) };
 }
