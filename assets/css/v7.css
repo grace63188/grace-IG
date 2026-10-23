@@ -320,3 +320,12 @@
   .cdn{gap:6px}
   .cdn b{font-size:22px}
 }
+
+/* Logo＝回到首頁：連結只包住 Logo，尺寸不變（無版面位移）；點擊區 ≥44px；按下輕微縮放 */
+.home-link{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border-radius:12px;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+.home-link img{transition:transform var(--t-press) ease-out,opacity var(--t-press) ease-out}
+.home-link:active img{transform:scale(.97);opacity:.82}
+.mast-h .home-link{line-height:0}
+.qz-home{flex:none;width:44px;height:44px;margin:0 -6px 0 -8px;padding-left:8px;justify-content:flex-start}
+.qz-home img{width:24px;height:auto;opacity:.9}
+@media (prefers-reduced-motion:reduce){ .home-link img{transition:opacity var(--t-press) linear} .home-link:active img{transform:none} }

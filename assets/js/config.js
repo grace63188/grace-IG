@@ -2,7 +2,7 @@
    鍵：gas（資料中心 /exec 網址）、lineChannelId、googleClientId、redirectUri（LINE 回呼，固定帶 ?auth=line）、ipEndpoint（可留空）
    來源：index.html 內嵌 #hub-config → data/hub.json（有值的欄位覆蓋內嵌值）
    gas 未設定 → 示範模式：登入以模擬帳號完成、事件只寫入本機佇列不送出（測驗照常可做） */
-import { getJSON } from './core.js?v=20261023f';
+import { getJSON } from './core.js?v=20261023g';
 
 const KEYS = ['gas', 'lineChannelId', 'googleClientId', 'redirectUri', 'ipEndpoint'];
 const str = (v) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');

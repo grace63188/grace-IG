@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023f';
-import { initQuiz } from './quiz.js?v=20261023f';
-import { initTickets } from './ticket.js?v=20261023f';
-import { loadConfig } from './config.js?v=20261023f';
-import { initSound, sfx } from './sound.js?v=20261023f';
-import { initTracking, track } from './track.js?v=20261023f';
-import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023f';
-import { initGate, errText } from './gate.js?v=20261023f';
-import { initIntro } from './intro.js?v=20261023f';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023g';
+import { initQuiz } from './quiz.js?v=20261023g';
+import { initTickets } from './ticket.js?v=20261023g';
+import { loadConfig } from './config.js?v=20261023g';
+import { initSound, sfx } from './sound.js?v=20261023g';
+import { initTracking, track } from './track.js?v=20261023g';
+import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023g';
+import { initGate, errText } from './gate.js?v=20261023g';
+import { initIntro } from './intro.js?v=20261023g';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -81,7 +81,7 @@ function initSheets() {
       openSheet(o.dataset.open, cur ? opener : o); return;
     }
     if (e.target.closest('[data-close]')) closeSheet(false, 'button');
-    else if (e.target === $('#scrim')) closeSheet(false, 'scrim');
+    else if (e.target === $('#scrim')) { if (overLogo(e)) goHome(e); else closeSheet(false, 'scrim'); }
   });
   layer.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); closeSheet(false, 'esc'); return; }
@@ -356,6 +356,31 @@ function paintNone() {
   $('#now-none').hidden = any;
 }
 
+/* ---------- Logo 回到首頁 ----------
+   版頭 Logo、測驗標題列 Logo（[data-home]），以及卡片開著時點在遮罩下的版頭 Logo 位置：
+   收起卡片（含登入卡）與測驗（作答保留）→ 首頁 → 回到頂端；網址去掉參數與 #（維持 /grace-IG/）；不重播開場。
+   追蹤沿用既有畫面事件（sheet.<名>.close v=logo、quiz.close），不另增事件 */
+let quizApi = null;
+const homePath = () => location.pathname.replace(/index\.html$/, '');
+function overLogo(e) {
+  const l = $('#home-logo'); if (!l || !Number.isFinite(e.clientX)) return false;
+  const r = l.getBoundingClientRect();
+  return r.width > 0 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+}
+function goHome(e) {
+  if (e) e.preventDefault();
+  if (root.classList.contains('intro-play')) return;
+  const q = $('#quiz'), was = !!cur || !!(q && !q.hidden);
+  if (cur) closeSheet(true, 'logo');
+  if (q && !q.hidden && quizApi) quizApi.close();
+  try { if (location.search || location.hash || location.pathname !== homePath()) history.replaceState(null, '', homePath()); } catch (x) { /* 忽略 */ }
+  window.scrollTo({ top: 0, left: 0, behavior: reduced() ? 'auto' : 'smooth' });
+  if (was) setTimeout(() => { const a = $('#home-logo'); if (a) a.focus({ preventScroll: true }); }, 30);
+}
+function initHome() {
+  $$('[data-home]').forEach((a) => a.addEventListener('click', goHome));
+}
+
 /* ---------- 啟動 ---------- */
 let ticking = false;
 function initTimed(data) {
@@ -386,8 +411,9 @@ async function start() {
   initIntro({ prepare: () => { closeSheet(true); const q = $('#quiz'); if (q && !q.hidden) $('#qz-close').click(); } });
   initSheets();
   initTabs();
+  initHome();
   let gate = null;
-  const quiz = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')), onSwitch: (k) => gate && gate.switchAccount(k) });
+  const quiz = quizApi = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')), onSwitch: (k) => gate && gate.switchAccount(k) });
   /* 撕票 →（未登入：儀式卡登入）→ 直接進第一題；測驗關閉時焦點回到「開始測驗」鍵 */
   gate = initGate({
     openSheet, closeSheet,
