@@ -10,9 +10,9 @@
    - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state'
    - LINE 返回的換 token（auth.line）實測要 3–10 秒（Apps Script 冷啟動）：pendingLine() 先同步讀出所選測驗種類，
      讓 gate 立刻顯示「登入中」的儀式卡，不讓訪客對著首頁等；auth.line／auth.google 逾時放寬到 25 秒 */
-import { config } from './config.js?v=20261023e';
-import { post } from './api.js?v=20261023e';
-import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023e';
+import { config } from './config.js?v=20261023f';
+import { post } from './api.js?v=20261023f';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023f';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';
@@ -244,7 +244,7 @@ function readPending() { try { const v = JSON.parse(ls.get(PENDING_KEY) || '[]')
 let flushing = false;
 async function flushPending() {
   const s = session();
-  if (flushing || !s || s.demo || config().demo) return;
+  if (flushing || (s && s.demo) || config().demo) return;          /* 未登入也送（不帶 vt，資料中心以 did 存，登入後補 pid） */
   const list = readPending();
   if (!list.length) return;
   flushing = true;
@@ -256,7 +256,7 @@ async function flushPending() {
   ls.set(PENDING_KEY, JSON.stringify(left.slice(-10)));
   flushing = false;
 }
-/** 完成測驗：登入中送出；失敗（離線、未授權）保留，下次登入或載入時補送。示範模式不送 */
+/** 完成測驗：立即送出（登入中帶 vt；未登入不帶 vt，以裝置存）；失敗（離線、未授權）保留，下次載入時補送。示範模式不送 */
 export function submitResult(payload) {
   if (config().demo) return false;
   const list = readPending(); list.push(payload);

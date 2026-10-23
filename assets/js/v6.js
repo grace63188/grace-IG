@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023e';
-import { initQuiz } from './quiz.js?v=20261023e';
-import { initTickets } from './ticket.js?v=20261023e';
-import { loadConfig } from './config.js?v=20261023e';
-import { initSound, sfx } from './sound.js?v=20261023e';
-import { initTracking, track } from './track.js?v=20261023e';
-import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023e';
-import { initGate, errText } from './gate.js?v=20261023e';
-import { initIntro } from './intro.js?v=20261023e';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023f';
+import { initQuiz } from './quiz.js?v=20261023f';
+import { initTickets } from './ticket.js?v=20261023f';
+import { loadConfig } from './config.js?v=20261023f';
+import { initSound, sfx } from './sound.js?v=20261023f';
+import { initTracking, track } from './track.js?v=20261023f';
+import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023f';
+import { initGate, errText } from './gate.js?v=20261023f';
+import { initIntro } from './intro.js?v=20261023f';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -62,7 +62,7 @@ function closeSheet(instant, via) {
   if (!cur) return;
   const s = cur; cur = null;
   liveStop();
-  if (via) track(`${s.id.slice(2)}.close`, 'close', { via });
+  if (via) track(`sheet.${s.id.slice(2)}.close`, 'close', { via });
   layer.classList.remove('on');
   s.style.removeProperty('--drag');
   root.classList.remove('sheet-open');
@@ -218,9 +218,9 @@ function paintCampaign(t) {
 }
 
 /* ---------- 直播 ---------- */
-/* 加入行事曆（Google 日曆範本）：標題固定「校長IG直播」、說明固定兩行（傳送門＋不見不散）、地點為校長 IG；時間照 live.json
+/* 加入行事曆（Google 日曆範本）：標題固定「【校長IG直播】」、說明固定兩行（傳送門＋不見不散）、地點為校長 IG；時間照 live.json
    畫面上的「IG直播」字樣不受影響 */
-export const GCAL_TITLE = '校長IG直播';
+export const GCAL_TITLE = '【校長IG直播】';
 export const GCAL_IG = 'https://www.instagram.com/grace.wwwwwwww';
 export const GCAL_DETAILS = `傳送門：${GCAL_IG}\n不見不散，校長在等妳💗`;
 export function gcalUrl(e) {
@@ -386,9 +386,10 @@ async function start() {
   initIntro({ prepare: () => { closeSheet(true); const q = $('#quiz'); if (q && !q.hidden) $('#qz-close').click(); } });
   initSheets();
   initTabs();
-  const quiz = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')) });
+  let gate = null;
+  const quiz = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')), onSwitch: (k) => gate && gate.switchAccount(k) });
   /* 撕票 →（未登入：儀式卡登入）→ 直接進第一題；測驗關閉時焦點回到「開始測驗」鍵 */
-  const gate = initGate({
+  gate = initGate({
     openSheet, closeSheet,
     startQuiz: (k) => quiz.open(k, $('[data-open="quiz"].k'), { direct: true }),
   });

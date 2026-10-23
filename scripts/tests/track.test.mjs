@@ -6,8 +6,9 @@ import { wire, devInfo } from '../../assets/js/track.js';
 import { normalize } from '../../assets/js/config.js';
 
 /* 與 hub-admin/gas/lib.js 的 LIB_EVENT_NAMES／LIB_KEYS 相同 */
-const NAMES = ['enter', 'key', 'now', 'card', 'tear', 'login_start', 'login_done', 'login_fail', 'quiz_q', 'quiz_done', 'quiz_retry', 'out', 'foot', 'sound'];
-const KEYS = { key: ['quiz', 'study', 'event', 'live', 'follow', 'consult'], now: ['live', 'event', 'pod'], tear: ['ability', 'career'], login_start: ['line', 'google'], login_fail: ['line', 'google'], quiz_q: ['ability', 'career'], quiz_retry: ['ability', 'career'], out: ['key', 'now', 'foot', 'card', 'result'], foot: ['line_academy', 'line_sampler', 'ig', 'yt', 'pod'], sound: ['on', 'off'] };
+const NAMES = ['enter', 'key', 'now', 'card', 'tear', 'login_start', 'login_done', 'login_fail', 'quiz_q', 'quiz_nav', 'quiz_done', 'quiz_retry', 'out', 'foot', 'sound', 'view'];
+const KEYS = { key: ['quiz', 'study', 'event', 'live', 'follow', 'consult'], now: ['live', 'event', 'pod', 'ig'], tear: ['ability', 'career'], login_start: ['line', 'google'], login_fail: ['line', 'google'], quiz_q: ['ability', 'career'], quiz_nav: ['ability', 'career', ''], quiz_retry: ['ability', 'career'], foot: ['line_academy', 'line_sampler', 'ig', 'yt', 'pod', 'reply_time'], sound: ['on', 'off'] };
+const CODE = /^[a-z0-9_.-]{1,24}$/;                                   /* out／view 的 k＝元素代號 */
 
 const CLICKS = ['key.quiz', 'key.study', 'key.event', 'key.live', 'key.follow', 'key.consult', 'now.live', 'now.event', 'now.podcast', 'now.ig',
   'foot.line_academy', 'foot.line_sampler', 'foot.reply_time', 'study.tab.academy', 'study.tab.sampler', 'consult.enroll', 'consult.group.open.open',
@@ -16,16 +17,18 @@ const CLICKS = ['key.quiz', 'key.study', 'key.event', 'key.live', 'key.follow', 
 const LINKS = ['study.academy.site', 'study.sampler.course1', 'study.sampler.group', 'study.sampler.site', 'event.go', 'event.ig', 'live.calendar', 'live.ig',
   'follow.ig_principal', 'follow.ig_official', 'follow.youtube', 'follow.podcast', 'follow.podcast_latest', 'consult.book', 'quiz.backend'];
 
-const valid = (w) => NAMES.includes(w.n) && !['login_done', 'quiz_done'].includes(w.n) && (!KEYS[w.n] || KEYS[w.n].includes(w.k));
+const valid = (w) => NAMES.includes(w.n) && !['login_done', 'quiz_done'].includes(w.n) && (['out', 'view'].includes(w.n) ? CODE.test(w.k) : (!KEYS[w.n] || KEYS[w.n].includes(w.k)));
 
 test('每個點擊與外連代號都對應到資料中心白名單', () => {
   for (const el of CLICKS) assert.ok(valid(wire(el, 'click', {})), el + ' → ' + JSON.stringify(wire(el, 'click', {})));
   for (const el of LINKS) {
     const w = wire(el, 'link', { href: 'https://example.com/a?b=1' });
     assert.ok(valid(w), el);
-    if (!el.startsWith('foot.')) assert.equal(w.n, 'out', el);
+    if (!el.startsWith('foot.')) { assert.equal(w.n, 'out', el); assert.equal(w.k, el, el + '：k＝元素代號'); assert.equal(w.u, 'example.com/a'); }
   }
-  assert.equal(wire('quiz.backend', 'link', { href: 'https://x.tw/a' }).k, 'result');
+  assert.deepEqual(wire('study.academy.site', 'link', { href: 'https://www.graceschool.com.tw/?x=1', text: '前往學院官網' }), { n: 'out', k: 'study.academy.site', v: '前往學院官網', u: 'www.graceschool.com.tw/' });
+  assert.deepEqual(wire('now.ig', 'click', { label: '最新消息公告於校長 IG' }), { n: 'now', k: 'ig', v: '最新消息公告於校長 IG' });
+  assert.deepEqual(wire('foot.reply_time', 'link', { href: 'https://line.me/R/ti/p/@52grace' }), { n: 'foot', k: 'reply_time' });
 });
 
 test('流程事件：進站、撕票、登入、作答、靜音', () => {
@@ -34,7 +37,9 @@ test('流程事件：進站、撕票、登入、作答、靜音', () => {
   assert.equal(wire('auth.line.start', 'auth_start', { provider: 'line' }).n, 'login_start');
   assert.deepEqual(wire('auth.fail', 'auth', { provider: 'google', code: 'RATE_LIMIT' }), { n: 'login_fail', k: 'google', v: 'RATE_LIMIT' });
   assert.deepEqual(wire('auth.google.blocked', 'view', {}), { n: 'login_fail', k: 'google', v: 'webview' });
-  assert.deepEqual(wire('quiz.answer', 'answer', { kind: 'career', q: 7 }), { n: 'quiz_q', k: 'career', v: '7' });
+  assert.deepEqual(wire('quiz.answer', 'answer', { kind: 'career', q: 7, n: 12, k: 2, done: 7 }), { n: 'quiz_q', k: 'career', v: '7:1' });
+  assert.deepEqual(wire('quiz.answer', 'answer', { kind: 'ability', q: 14, k: 4 }), { n: 'quiz_q', k: 'ability', v: '14:3' });
+  assert.deepEqual(wire('quiz.next', 'click', { kind: 'ability', q: 3 }), { n: 'quiz_nav', k: 'ability', v: 'next' });
   assert.deepEqual(wire('quiz.again', 'click', { kind: 'ability' }), { n: 'quiz_retry', k: 'ability' });
   assert.deepEqual(wire('snd.toggle', 'click', { on: false, at: 'home' }), { n: 'sound', k: 'off', v: 'home' });
   assert.equal(wire('auth.success', 'auth', {}).local, true);           // 由資料中心補 login_done
@@ -86,4 +91,17 @@ test('內嵌設定 #hub-config 與 data/hub.json 相同，且為正式模式', a
   const c = normalize(emb);
   assert.equal(c.demo, false);
   assert.deepEqual(c.providers, { line: true, google: true });
+});
+
+test('畫面顯示送 view（不算點擊）：卡片／測驗開關、登入中、自動進入、諮詢展開', () => {
+  assert.deepEqual(wire('rite.open', 'view', { kind: 'ability', state: 'login', inapp: false }), { n: 'view', k: 'rite.open', v: 'ability' });
+  assert.deepEqual(wire('rite.pending', 'view', { kind: 'career', provider: 'line' }), { n: 'view', k: 'rite.pending', v: 'career' });
+  assert.deepEqual(wire('rite.start', 'click', { kind: 'ability', auto: true, fresh: true }), { n: 'view', k: 'rite.start', v: 'ability' });
+  assert.deepEqual(wire('quiz.open', 'view', { kind: 'career', direct: true }), { n: 'view', k: 'quiz.open', v: 'career' });
+  assert.deepEqual(wire('quiz.close', 'close', { kind: 'ability', at: 3, n: 14 }), { n: 'view', k: 'quiz.close', v: 'ability' });
+  assert.deepEqual(wire('sheet.live.close', 'close', { via: 'esc' }), { n: 'view', k: 'sheet.live.close', v: 'esc' });
+  assert.deepEqual(wire('consult.group.very_long_group_identifier.open', 'toggle'), { n: 'view', k: 'consult.group', v: 'open' });
+  assert.deepEqual(wire('consult.group.x.close', 'toggle'), { n: 'view', k: 'consult.group', v: 'close' });
+  assert.deepEqual(wire('auth.google.blocked', 'view', {}), { n: 'login_fail', k: 'google', v: 'webview' });   /* 仍是 login_fail */
+  for (const w of [wire('rite.open', 'view', {}), wire('quiz.close', 'close', {}), wire('consult.group.a.open', 'toggle')]) assert.ok(valid(w), JSON.stringify(w));
 });

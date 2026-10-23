@@ -6,9 +6,11 @@
    - 每筆佇列紀錄：id、t（epoch ms）、契約欄位 n／k／v／u／ref、元素代號 el、裝置 id did、訪客 token vt（有才帶）
      送出時只帶契約欄位；did／vt 放在請求外層。login_done／quiz_done 由資料中心自動補，前台只留本機紀錄（local）
    - 示範模式：只寫入本機佇列，不送出、不讀 IP，也不在主控台列印任何內容
-   - 點擊自動收集：document 擷取階段監聽 [data-ev]；動態事件由各模組呼叫 track() */
-import { isDemo } from './config.js?v=20261023e';
-import { post, beacon as sendBeacon, setIdentity, fetchIp } from './api.js?v=20261023e';
+   - 點擊自動收集：document 擷取階段監聽 [data-ev]；動態事件由各模組呼叫 track()
+   - 點擊與畫面分開（CONTRACT 1.2）：act 為 view／close／toggle（或 meta.auto）的畫面變化送 n=view、k=元素代號，不算點擊；
+     外連 <a data-ev> 送 n=out、k=元素代號、v=按鈕文字、u=網域＋路徑；作答 quiz_q 的 v＝「題號:選項」（選項 0 起，不含任何文字） */
+import { isDemo } from './config.js?v=20261023f';
+import { post, beacon as sendBeacon, setIdentity, fetchIp } from './api.js?v=20261023f';
 
 export const Q_KEY = 'gh.q';
 export const DID_KEY = 'gh.did';
@@ -82,10 +84,12 @@ export const setTokenSource = (fn) => { tokenOf = typeof fn === 'function' ? fn 
 setIdentity(() => ({ did: deviceId(), vt: tokenOf() }));
 
 /* ---------- 元素代號 → 契約事件 ---------- */
-const NOW = { live: 'live', event: 'event', podcast: 'pod' };
+const NOW = { live: 'live', event: 'event', podcast: 'pod', ig: 'ig' };
 const KEYS = ['quiz', 'study', 'event', 'live', 'follow', 'consult'];
-const FOOT = ['line_academy', 'line_sampler', 'ig', 'yt', 'pod'];
-const urlPart = (u) => { try { const x = new URL(u, location.href); return (x.host + x.pathname).slice(0, 200); } catch (e) { return ''; } };
+const FOOT = ['line_academy', 'line_sampler', 'reply_time', 'ig', 'yt', 'pod'];
+const VIEW_ACTS = ['view', 'close', 'toggle'];
+const code = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 24).replace(/\.+$/, '');
+const urlPart = (u) => { try { const x = new URL(u, typeof location !== 'undefined' ? location.href : undefined); return (x.host + x.pathname).slice(0, 200); } catch (e) { return ''; } };
 
 /** 回傳 { n, k, v, u, ref } 或 { local: true }（只留本機、不送出） */
 export function wire(el, act, meta = {}) {
@@ -95,6 +99,7 @@ export function wire(el, act, meta = {}) {
   if (a === 'key' && KEYS.includes(b)) return { n: 'key', k: b };
   if (a === 'now') return NOW[b] ? { n: 'now', k: NOW[b], v: meta.label || '' } : { n: 'card', k: 'now', v: el };
   if (a === 'foot') return FOOT.includes(b) ? { n: 'foot', k: b } : { n: 'foot', k: 'line_academy', v: b };
+  if (a === 'quiz' && (b === 'prev' || b === 'next')) return { n: 'quiz_nav', k: kind, v: b };
   if (a === 'tear' && (b === 'ability' || b === 'career')) return { n: 'tear', k: b, v: meta.via || '' };
   if (a === 'snd') return { n: 'sound', k: meta.on ? 'on' : 'off', v: meta.at || '' };
   if (a === 'auth') {
@@ -105,11 +110,19 @@ export function wire(el, act, meta = {}) {
     if (el === 'auth.success') return { local: true };                 /* 資料中心自動補 login_done */
   }
   if (a === 'quiz') {
-    if (el === 'quiz.answer') return { n: 'quiz_q', k: kind, v: String(meta.q || '') };
+    if (el === 'quiz.answer') {
+      const q = Math.max(0, Math.floor(Number(meta.q) || 0)), o = Math.floor(Number(meta.k)) - 1;   /* meta.k＝選項（1 起）→ 送 0 起 */
+      return { n: 'quiz_q', k: kind, v: q ? q + (o >= 0 && o <= 9 ? ':' + o : '') : '' };
+    }
     if (el === 'quiz.again') return { n: 'quiz_retry', k: kind };
     if (el === 'quiz.complete') return { local: true };                /* quiz.result 會自動補 quiz_done */
   }
-  if (act === 'link' && meta.href) return { n: 'out', k: a === 'quiz' ? 'result' : 'card', v: el, u: urlPart(meta.href) };
+  if (VIEW_ACTS.includes(act) || meta.auto) {                         /* 畫面顯示／關閉／展開：不算點擊 */
+    if (act === 'toggle') { const base = el.replace(/\.(open|close)$/, ''); return { n: 'view', k: code(/^consult\.group\./.test(base) ? 'consult.group' : base), v: /\.close$/.test(el) ? 'close' : 'open' }; }
+    const v = meta.kind === 'ability' || meta.kind === 'career' ? meta.kind : String(meta.via || '');
+    return { n: 'view', k: code(el), v: v.slice(0, 40) };
+  }
+  if (act === 'link' && meta.href) return { n: 'out', k: code(el), v: String(meta.text || '').slice(0, 80), u: urlPart(meta.href) };
   const sheetKey = { rite: 'quiz', quiz: 'quiz', auth: 'quiz', study: 'study', event: 'event', live: 'live', follow: 'follow', consult: 'consult' }[a] || a;
   return { n: 'card', k: String(sheetKey).slice(0, 24), v: el };
 }
@@ -215,7 +228,7 @@ export function initTracking() {
     if (t.dataset.evMeta) { try { Object.assign(meta, JSON.parse(t.dataset.evMeta)); } catch (x) { /* 忽略 */ } }
     if (t.dataset.ev.startsWith('now.')) meta.label = t.textContent.replace(/\s+/g, ' ').trim().slice(0, 80);
     const link = t.tagName === 'A' && t.href;
-    if (link) meta.href = t.href;
+    if (link) { meta.href = t.href; meta.text = (t.textContent || t.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim().slice(0, 80); }
     track(t.dataset.ev, link ? 'link' : 'click', meta);
   }, true);
   /* <details data-ev-toggle> 展開／收合 */

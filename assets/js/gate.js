@@ -10,11 +10,11 @@
      訪客此時撕票只會重畫同一張登入中卡（不會回到可再按一次登入的卡），完成即收起、直接進所選測驗第 1 題
    - 已登入回訪：撕票後直接進第一題
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc, reduced } from './core.js?v=20261023e';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023e';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023e';
-import { track } from './track.js?v=20261023e';
-import { OA_URL } from './quiz.js?v=20261023e';
+import { $, $$, esc } from './core.js?v=20261023f';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023f';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023f';
+import { track } from './track.js?v=20261023f';
+import { OA_URL } from './quiz.js?v=20261023f';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最接近平常的那一項就好';
@@ -22,7 +22,6 @@ export const NOTICE = '登入時會取得你的 LINE／Google 名稱、大頭貼
 export const PRIVACY_URL = 'privacy.html';
 export { OA_URL };
 const KINDS = { ability: { title: '能力健檢', n: 14, min: 3 }, career: { title: '職涯定位', n: 12, min: 2 } };
-const PROV = { line: 'LINE', google: 'Google' };
 const ERR = {
   denied: '已取消登入，可再試一次',
   provider_off: '此登入方式暫未開放，請改用另一種',
@@ -253,39 +252,21 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
     if (act === 'ext') return ext(b, e);
   });
 
-  /* ---------- 頂部頭像 chip ---------- */
-  const wrap = $('#who-wrap'), who = $('#who'), menu = $('#who-menu');
-  function paintWho(animate) {
+  /* ---------- 登入者（只顯示在測驗標題列）＋切換帳號 ---------- */
+  function paintWho() {
     const s = session();
-    const had = !wrap.hidden;
-    wrap.hidden = !s;
     $('#qz-who').hidden = !s;
-    if (!s) { menuOpen(false); return; }
-    const ch = initial(s.name);
-    $('#who-av').textContent = ch; $('#who-n').textContent = s.name;
-    $('#who-src').dataset.p = s.src;
-    $('#who-m-n').textContent = s.name;
-    $('#who-m-s').textContent = `${PROV[s.src] || ''} 登入`;
-    who.setAttribute('aria-label', `歡迎回來，${s.name}（${PROV[s.src] || ''} 登入），開啟帳號選單`);
-    $('#qz-who-av').textContent = ch; $('#qz-who-n').textContent = s.name;
-    if (animate && !had && !reduced()) { wrap.classList.remove('pop'); void wrap.offsetWidth; wrap.classList.add('pop'); }
+    if (!s) return;
+    $('#qz-who-av').textContent = initial(s.name); $('#qz-who-n').textContent = s.name;
   }
-  function menuOpen(on) {
-    menu.hidden = !on;
-    who.setAttribute('aria-expanded', String(on));
-    if (on) setTimeout(() => $('#who-switch').focus({ preventScroll: true }), 20);
-  }
-  who.addEventListener('click', () => menuOpen(menu.hidden));
-  $('#who-switch').addEventListener('click', () => {
+  /** 切換帳號（測驗結果頁「不是你？切換帳號」）：登出本站，回到該測驗的登入卡 */
+  function switchAccount(k) {
     logout();
-    menuOpen(false);
-    const live = $('#who-live'); if (live) live.textContent = '已登出，下次測驗時可用其他帳號登入';
-    $('[data-open="quiz"].k').focus({ preventScroll: true });
-  });
-  document.addEventListener('pointerdown', (e) => { if (!menu.hidden && !wrap.contains(e.target)) menuOpen(false); });
-  wrap.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { e.preventDefault(); menuOpen(false); who.focus(); } });
-  onAuth(() => paintWho(false));
-  paintWho(false);
+    const live = $('#who-live'); if (live) live.textContent = '已登出，請用其他帳號登入';
+    open(KINDS[k] ? k : kind);
+  }
+  onAuth(() => paintWho());
+  paintWho();
 
   /* ---------- 靜音鈕（首頁右上角＋測驗標題列，兩顆同步） ---------- */
   const sndBtns = $$('[data-snd]');
@@ -303,5 +284,5 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
   onMute(paintSnd);
   paintSnd(isMuted());
 
-  return { open, go, hold, render, paintWho, pending: () => (pending ? pending.kind : '') };
+  return { open, go, hold, render, paintWho, switchAccount, pending: () => (pending ? pending.kind : '') };
 }

@@ -6,14 +6,14 @@
    - 入口：撕票 →（未登入先在儀式卡登入，gate.js）→ 直接進第一題（未完成者接續）；第一題上方顯示一行作答提醒，不需點按
    - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝香檳鐘聲；事件：每題作答進度、完成與結果 */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261023e';
-import { sfx } from './sound.js?v=20261023e';
-import { track } from './track.js?v=20261023e';
-import { submitResult, onResults, session } from './auth.js?v=20261023e';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261023f';
+import { sfx } from './sound.js?v=20261023f';
+import { track } from './track.js?v=20261023f';
+import { submitResult, onResults, session } from './auth.js?v=20261023f';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261023e';
+} from './quizdata.js?v=20261023f';
 
 export const STORE_KEY = 'grace.quiz.v1';
 const SIGNIN = 'https://www.graceschool.com.tw/member/signin';
@@ -170,7 +170,7 @@ export function drawCard(canvas, kind, r) {
 }
 
 /* ---------- 主體 ---------- */
-export function initQuiz({ onEnroll } = {}) {
+export function initQuiz({ onEnroll, onSwitch } = {}) {
   const box = $('#quiz');
   if (!box) return null;
   const page = $('.page');
@@ -278,6 +278,13 @@ export function initQuiz({ onEnroll } = {}) {
     return `<a class="cta cta-sub gl gl-clear cta-add" href="${OA_URL}" target="_blank" rel="noopener" data-ev="rite.line_add"><span class="lbl-l"><span class="lead-ic"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-linef"/></svg></span><span class="lbl">加入 <span class="en">@52grace</span></span></span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-ext"/></svg></span></a>`;
   }
 
+  /* 登入者：「不是你？切換帳號」（安靜的文字連結，結果動作之下）→ 登出本站並回到這個測驗的登入卡 */
+  function switchHtml() {
+    const ss = session();
+    if (!ss) return '';
+    return `<p class="r-switch"><button class="txt-link" type="button" data-act="switch" data-ev="who.switch">不是你？切換帳號</button></p>`;
+  }
+
   const nameHtml = (s) => [...s].map((ch, i) => `<span style="--i:${i}">${esc(ch)}</span>`).join('');
 
   function resultHtml(r) {
@@ -294,7 +301,7 @@ export function initQuiz({ onEnroll } = {}) {
         ${r.allSame ? '' : `<section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>最強能力・${esc(r.top)}</h4><p>${esc(ABILITY_TEXT[r.top].strong)}</p></section>
         <section class="r-sec"><h4><i class="tag" aria-hidden="true"></i>最需補強・${esc(r.low)}</h4><p>${esc(ABILITY_TEXT[r.low].weak)}</p></section>`}
         ${cardHtml()}${endingHtml()}
-        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}
+        <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
         <p class="r-note">${NOTE}</p></div>
         </div>
       </div>`;
@@ -314,7 +321,7 @@ export function initQuiz({ onEnroll } = {}) {
       <section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>適合方向</h4>${listHtml(P.paths)}</section>
       <section class="r-sec r-second"><h4>副角色・${esc(r.secondary)}</h4><p>${esc(S2.desc)}</p></section>
       ${cardHtml()}${endingHtml()}
-      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}
+      <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again"><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
       <p class="r-note">${NOTE}</p></div>
       </div>
     </div>`;
@@ -471,6 +478,7 @@ export function initQuiz({ onEnroll } = {}) {
     if (act === 'again') { state[kind] = null; box.classList.remove('done'); return showIntro(1); }
     if (act === 'save') return save(b);
     if (act === 'enroll') { close(); if (onEnroll) setTimeout(onEnroll, 60); }
+    if (act === 'switch') { const k = kind; close(); if (onSwitch) setTimeout(() => onSwitch(k), 60); }
   });
 
   function selectTab(t) {

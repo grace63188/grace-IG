@@ -11,44 +11,16 @@
   --x-ease:cubic-bezier(0.2,0,0,1);        /* 圖示交叉淡化 */
 }
 
-/* ---------- 頂部角落：頭像 chip（左）＋靜音珠（右） ---------- */
+/* ---------- 頂部角落：靜音珠（右） ---------- */
 .page.v6{position:relative}
 .corner{position:absolute;top:max(14px, env(safe-area-inset-top, 0px));left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:flex-start;
   padding:0 var(--pr,16px) 0 var(--pl,16px);pointer-events:none}
 .corner > *{pointer-events:auto}
 .corner > .sr-only{pointer-events:none}
-.who-wrap{position:relative;min-width:0}
-.who{display:inline-flex;align-items:center;gap:8px;min-height:44px;max-width:min(240px, calc(50vw - 40px));padding:0 12px 0 6px;border-radius:999px;color:var(--ink);text-align:left;
-  background:var(--matte);box-shadow:3px 3px 7px rgba(150,150,146,.5),-3px -3px 7px rgba(255,255,255,.9);
-  transition-property:transform,box-shadow;transition-duration:var(--t-press);transition-timing-function:ease-out}
-.who:active{transform:scale(.96);box-shadow:var(--matte-sink)}
-.who[aria-expanded="true"]{box-shadow:var(--matte-sink)}
-.who-t{display:flex;flex-direction:column;min-width:0;line-height:1.25}
-.who-t small{font-size:10.5px;color:var(--ink-3);letter-spacing:.1em;white-space:nowrap}
-.who-n{font-size:13px;font-weight:500;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.who .src{width:14px;height:14px;flex:none;border-radius:4px;background:var(--line-green);display:grid;place-items:center}
-.who .src svg{width:10px;height:10px;fill:#fff;stroke:none}
-.who .src[data-p="google"]{display:none}
 .av{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:13px;font-weight:500;line-height:1;color:var(--obs-ink);
   background:radial-gradient(circle at 35% 28%,#6A6D7B 0,#2A2C34 52%,#101116 100%);background-color:#14151B;box-shadow:inset 0 0 0 1.5px rgba(226,203,154,.75)}
 .av-ghost{position:fixed;z-index:95;margin:0;pointer-events:none;transform-origin:50% 50%}
 
-/* 帳號選單：情境選單不做入場動畫（立即出現） */
-.who-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:6;width:max-content;min-width:200px;max-width:calc(100vw - 32px);padding:10px;border-radius:22px;background:var(--clay);
-  box-shadow:0 18px 40px -12px rgba(110,110,106,.55),0 2px 8px rgba(110,110,106,.18),-8px -8px 20px rgba(255,255,255,.8)}
-.who-m-h{display:flex;flex-direction:column;gap:2px;padding:4px 8px 10px}
-.who-m-h b{font-size:14.5px;font-weight:500;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.who-m-h small{font-size:12px;color:var(--ink-3);letter-spacing:.04em}
-.who-m-b{position:relative;isolation:isolate;overflow:hidden;width:100%;min-height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:16px;font-size:14px;font-weight:500;letter-spacing:.06em;
-  background:var(--matte);box-shadow:var(--matte-lift);transition-property:transform,box-shadow;transition-duration:var(--t-press);transition-timing-function:ease-out}
-.who-m-b:active{transform:scale(.96);box-shadow:var(--matte-sink)}
-.who-m-b svg{width:16px;height:16px;color:var(--ink-2)}
-@media (prefers-reduced-motion:no-preference){
-  /* 登入完成：頭像飛到左上（gate.js 280ms）後 chip 浮現 */
-  .who-wrap.pop{animation:who-pop 220ms var(--ease-out) 240ms backwards}
-}
-@media (prefers-reduced-motion:reduce){ .who-wrap.pop{animation:fade-in 200ms ease-out 120ms backwards} }
-@keyframes who-pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
 @keyframes fade-in{from{opacity:0}to{opacity:1}}
 
 /* 靜音珠：開＝黑曜石珠＋聲波；靜音＝霧面珠＋叉號；圖示交叉淡化 */
@@ -217,13 +189,11 @@
 }
 @media (max-width:359px){
   .rite-h{font-size:17px;letter-spacing:.04em}
-  .who{max-width:calc(50vw - 44px);gap:6px;padding-right:10px}
-  .who .src{display:none}
   .rite-tk .iss{display:none}
   .inapp-h{font-size:18px}
   .g-step{font-size:15.5px}
 }
-@media (forced-colors:active){ .who,.who-m-b,.pill-s,.rite-tk,.wb-last,.g-steps.hl{border:1px solid CanvasText} }
+@media (forced-colors:active){ .pill-s,.rite-tk,.wb-last,.g-steps.hl{border:1px solid CanvasText} }
 
 /* Google 提示被略過時：官方按鈕（由 Google 繪製） */
 .gsi-slot{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 0 2px}
@@ -236,6 +206,11 @@
 @keyframes q-rite-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 /* 結果頁：加入學院官方 LINE（LINE 登入者） */
 .r-foot .cta-add{width:100%}
+/* 結果頁「不是你？切換帳號」：安靜的文字連結（觸控高度 44px） */
+.r-switch{display:flex;justify-content:center;margin:-2px 0 0}
+.txt-link{min-height:44px;padding:0 12px;font-size:13px;letter-spacing:.06em;color:var(--ink-3);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(120,120,116,.45);background:none;border:0}
+.txt-link:hover{color:var(--ink-2)}
+.txt-link:focus-visible{outline:2px solid var(--ink-2);outline-offset:2px;border-radius:8px}
 
 /* =========================================================
    收看直播｜A 日期主視覺（入口鍵＋底部卡片）
