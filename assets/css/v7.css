@@ -202,7 +202,7 @@
 
 /* 結果頁：加入學院官方 LINE（LINE 登入者） */
 .r-foot .cta-add{width:100%}
-/* 結果頁「不是你？切換帳號」：安靜的文字連結（觸控高度 44px） */
+/* 結果頁「不是妳？切換帳號」：安靜的文字連結（觸控高度 44px） */
 .r-switch{display:flex;justify-content:center;margin:-2px 0 0}
 .txt-link{min-height:44px;padding:0 12px;font-size:13px;letter-spacing:.06em;color:var(--ink-3);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(120,120,116,.45);background:none;border:0}
 .txt-link:hover{color:var(--ink-2)}

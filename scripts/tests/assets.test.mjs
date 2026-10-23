@@ -39,5 +39,5 @@ test('首頁沒有頭像 chip；切換帳號改在測驗結果頁', async () => 
   const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   assert.doesNotMatch(html, /id="who-wrap"|id="who-menu"|data-ev="who\.menu"/);
   const quiz = readFileSync(new URL('../../assets/js/quiz.js', import.meta.url), 'utf8');
-  assert.match(quiz, /data-act="switch" data-ev="who\.switch">不是你？切換帳號</);
+  assert.match(quiz, /data-act="switch" data-ev="who\.switch">不是妳？切換帳號</);
 });

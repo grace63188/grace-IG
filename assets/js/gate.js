@@ -10,15 +10,15 @@
      訪客此時撕票只會重畫同一張登入中卡（不會回到可再按一次登入的卡），完成即收起、進所選測驗的準備頁
    - 已登入回訪：撕票後直接進準備頁
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc } from './core.js?v=20261024a';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261024a';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261024a';
-import { track } from './track.js?v=20261024a';
-import { OA_URL } from './quiz.js?v=20261024a';
+import { $, $$, esc } from './core.js?v=20261024b';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261024b';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261024b';
+import { track } from './track.js?v=20261024b';
+import { OA_URL } from './quiz.js?v=20261024b';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
-export const RITE_SUB = '選最接近平常的那一項就好';
-export const NOTICE = '登入時會取得你的 LINE／Google 名稱、大頭貼與電子郵件，只用於對應學院學員帳號與提供學習資源，不會公開或轉給第三方。';
+export const RITE_SUB = '選最像平常的妳就好';
+export const NOTICE = '登入時會取得妳的 LINE／Google 名稱、大頭貼與電子郵件，只用於對應學院學員帳號與提供學習資源，不會公開或轉給第三方。';
 export const PRIVACY_URL = 'privacy.html';
 export { OA_URL };
 const KINDS = { ability: { title: '能力健檢', n: 14, min: 3 }, career: { title: '職涯定位', n: 12, min: 2 } };
@@ -89,7 +89,7 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
       </div>`;
   }
   /** LINE 授權返回、等待資料中心期間：同一張登入卡，LINE 鈕呈連線中、兩鈕停用 */
-  const PENDING_MSG = 'LINE 登入中，馬上為你開始測驗…';
+  const PENDING_MSG = 'LINE 登入中，馬上為妳開始測驗…';
   function pendingHtml() {
     return authHtml(PENDING_MSG)
       .replace('data-provider="line"', 'data-provider="line" disabled aria-busy="true"').replace('cta-line"', 'cta-line pending"')
@@ -259,7 +259,7 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
     if (!s) return;
     $('#qz-who-av').textContent = initial(s.name); $('#qz-who-n').textContent = s.name;
   }
-  /** 切換帳號（測驗結果頁「不是你？切換帳號」）：登出本站，回到該測驗的登入卡 */
+  /** 切換帳號（測驗結果頁「不是妳？切換帳號」）：登出本站，回到該測驗的登入卡 */
   function switchAccount(k) {
     logout();
     const live = $('#who-live'); if (live) live.textContent = '已登出，請用其他帳號登入';

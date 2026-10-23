@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ABILITIES, ABILITY_QS, ABILITY_QUESTIONS, ABILITY_TEXT, STAGES, scoreAbility,
-  ROLES, CAREER_QUESTIONS, ROLE_TEXT, scoreCareer,
+  ROLES, ROLE_CODE, CAREER_QUESTIONS, ROLE_TEXT, scoreCareer,
 } from '../../assets/js/quizdata.js';
 
 /** 依「每題想要的分數」換成選項索引（選項顯示順序不洗牌） */
@@ -30,7 +30,7 @@ test('能力健檢：14 題、每題 4 選項且分數為 0–3 各一', () => {
 });
 
 test('能力健檢：選項順序與題目原文一致（不洗牌）', () => {
-  assert.equal(ABILITY_QUESTIONS[0].opts[0].t, '先說好的部分，再補一句「有個地方想再確認」');
+  assert.equal(ABILITY_QUESTIONS[0].opts[0].t, '先說好的部分，再補一句「有個地方我想再確認一下」');
   assert.deepEqual(ABILITY_QUESTIONS[0].opts.map((o) => o.s), [2, 0, 3, 1]);
   assert.deepEqual(ABILITY_QUESTIONS[13].opts.map((o) => o.s), [1, 2, 0, 3]);
 });
@@ -42,9 +42,21 @@ test('職涯定位：12 題二選一、每個角色出現 4 次；內容用字',
   for (const r of ROLES) assert.equal(n[r], 4, r);
   const all = JSON.stringify([CAREER_QUESTIONS, ROLE_TEXT, ABILITY_QUESTIONS, ABILITY_TEXT]);
   assert.ok(!all.includes('你'), '一律用「妳」');
-  assert.ok(!all.includes('學姐'), '用「學姊」');
+  assert.ok(!all.includes('學姊'), '用「學姐」');
   assert.ok(!all.includes('照顧者'), 'S 型為「引導者」');
-  assert.ok(all.includes('學姊'));
+});
+
+/* 題目用語改寫（2026.10.24）前的計分對照：選項順序、分數、角色、能力題號、階段區間必須逐字相同 */
+const SCORING_BEFORE = '{"ABILITIES":["表達溝通","思考判斷","規劃佈局","領導協作","自我管理","品牌經營","工具應用"],"ABILITY_QS":{"表達溝通":[1,9],"思考判斷":[5,14],"規劃佈局":[2,11],"領導協作":[7,12],"自我管理":[4,10],"品牌經營":[3,8],"工具應用":[6,13]},"A":[[2,0,3,1],[1,0,2,3],[3,1,0,2],[2,1,3,0],[2,0,1,3],[2,0,1,3],[1,2,0,3],[0,3,1,2],[2,1,0,3],[3,0,2,1],[1,2,0,3],[2,0,3,1],[2,3,0,1],[1,2,0,3]],"STAGES":[[0,14,"探索起步"],[15,24,"基礎累積"],[25,34,"整合成形"],[35,42,"全面發揮"]],"ROLES":["實踐者","洞察者","創作者","引導者","開創者","統籌者"],"ROLE_CODE":{"實踐者":"R","洞察者":"I","創作者":"A","引導者":"S","開創者":"E","統籌者":"C"},"C":[["開創者","實踐者"],["洞察者","創作者"],["統籌者","引導者"],["洞察者","開創者"],["實踐者","統籌者"],["創作者","開創者"],["引導者","洞察者"],["實踐者","創作者"],["開創者","引導者"],["統籌者","洞察者"],["引導者","實踐者"],["創作者","統籌者"]]}';
+test('計分對照與改寫前逐字相同（選項順序、分數、角色、題號、階段）', () => {
+  const now = JSON.stringify({
+    ABILITIES, ABILITY_QS,
+    A: ABILITY_QUESTIONS.map((q) => q.opts.map((o) => o.s)),
+    STAGES: STAGES.map((s) => [s.min, s.max, s.name]),
+    ROLES, ROLE_CODE,
+    C: CAREER_QUESTIONS.map((q) => q.opts.map((o) => o.r)),
+  });
+  assert.equal(now, SCORING_BEFORE);
 });
 
 // ---------------- 能力健檢計分 ----------------

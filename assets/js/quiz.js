@@ -8,14 +8,14 @@
      畫面（Web Animations＋rAF）與聲音（sound.js cd*）都以按下那一刻為基準一次排程，聲音取同一個音訊時鐘讀數，不逐一漂移
    - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝香檳鐘聲；事件：每題作答進度、完成與結果 */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261024a';
-import { sfx, clock, hushCd } from './sound.js?v=20261024a';
-import { track } from './track.js?v=20261024a';
-import { submitResult, onResults, session } from './auth.js?v=20261024a';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261024b';
+import { sfx, clock, hushCd } from './sound.js?v=20261024b';
+import { track } from './track.js?v=20261024b';
+import { submitResult, onResults, session } from './auth.js?v=20261024b';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261024a';
+} from './quizdata.js?v=20261024b';
 
 export const STORE_KEY = 'grace.quiz.v1';
 const SIGNIN = 'https://www.graceschool.com.tw/member/signin';
@@ -40,9 +40,9 @@ const EASE_OUT = 'cubic-bezier(0.23,1,0.32,1)', EASE_IN = 'cubic-bezier(0.55,0,1
 
 const QUIZ = {
   ability: { title: '能力健檢', meta: '14 題・約 3 分鐘', qs: ABILITY_QUESTIONS,
-    lead: '七項經營能力的現況：從日常情境裡，選出最接近妳平常反應的一項。' },
+    lead: '看看妳在七種能力上現在的狀態。每題選一個最像妳平常反應的就好。' },
   career: { title: '職涯定位', meta: '12 題・約 2 分鐘', qs: CAREER_QUESTIONS,
-    lead: '六種角色裡，妳最自然的位置：每題二選一，憑第一直覺作答。' },
+    lead: '找出六種角色裡最像妳的那一個。每題二選一，憑直覺選就好。' },
 };
 
 /* ---------- 儲存 ---------- */
@@ -276,7 +276,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
         <a class="cta cta-main gl gl-ink" href="${SIGNIN}" target="_blank" rel="noopener" data-ev="quiz.backend"><span>前往學員後台</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
       </div>
       <div class="pane" role="tabpanel" id="qz-pane-1" aria-labelledby="qz-tab-1" hidden>
-        <p>想讓校長依照測驗結果安排個人進修課表，第一步是先成為 G.R.A.C.E 學姊。完成註冊、真人驗證，首次儲值 10萬開通打底層後，就可以提出申請。</p>
+        <p>想讓校長依照測驗結果安排個人進修課表，第一步是先成為 G.R.A.C.E 學姐。完成註冊和真人驗證，首次儲值 100,000 元開通「打底層」學員資格後，就可以提出申請。</p>
         <button class="cta cta-main gl gl-ink" type="button" data-act="enroll" data-ev="quiz.enroll"><span>開始入學</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></button>
       </div>
     </section>`;
@@ -298,11 +298,11 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
     return `<a class="cta cta-sub gl gl-clear cta-add" href="${OA_URL}" target="_blank" rel="noopener" data-ev="rite.line_add"><span class="lbl-l"><span class="lead-ic"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-linef"/></svg></span><span class="lbl">加入 <span class="en">@52grace</span></span></span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-ext"/></svg></span></a>`;
   }
 
-  /* 登入者：「不是你？切換帳號」（安靜的文字連結，結果動作之下）→ 登出本站並回到這個測驗的登入卡 */
+  /* 登入者：「不是妳？切換帳號」（安靜的文字連結，結果動作之下）→ 登出本站並回到這個測驗的登入卡 */
   function switchHtml() {
     const ss = session();
     if (!ss) return '';
-    return `<p class="r-switch"><button class="txt-link" type="button" data-act="switch" data-ev="who.switch">不是你？切換帳號</button></p>`;
+    return `<p class="r-switch"><button class="txt-link" type="button" data-act="switch" data-ev="who.switch">不是妳？切換帳號</button></p>`;
   }
 
   const nameHtml = (s) => [...s].map((ch, i) => `<span style="--i:${i}">${esc(ch)}</span>`).join('');
