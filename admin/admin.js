@@ -1180,7 +1180,7 @@ var SECTION_L = { overview: '總覽', people: '名單', results: '測驗結果',
 var VIEWS = {};
 function shellHtml() {
   var side = '<aside class="side"><a class="brandmark" href="#/overview" data-root aria-label="回到總覽"><img src="' + IMG.mark + '" alt=""><span><b>總覽後台</b><small>G.R.A.C.E 全平台</small></span></a>' +
-    '<nav class="nav-ad" aria-label="後台選單">' + NAV.map(function (n, i) {
+    '<nav class="sidenav" aria-label="後台選單">' + NAV.map(function (n, i) {
       return (i === 4 ? '<div class="grp-l" aria-hidden="true">工具</div>' : '') + '<a href="#/' + n[0] + '" data-root data-nav="' + n[0] + '">' + ic(n[2]) + '<span>' + n[1] + '</span>' + (n[0] === 'results' ? '<span class="cnt" data-und hidden></span>' : '') + '</a>';
     }).join('') + '</nav>' +
     '<div class="side-foot"><button class="fresh-b" type="button" data-refresh aria-label="重新整理資料">' + ic('i-redo') + '<span>資料時間 <b class="en" data-fresh>—</b></span></button>' +
