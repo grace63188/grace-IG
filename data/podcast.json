@@ -1,8 +1,14 @@
 {
-  "updated": null,
+  "updated": "2026-10-23T08:35:59+08:00",
   "show": {
-    "title": "芮力話｜我們下課吧",
+    "title": "【芮力話：我們下課吧】",
     "url": "https://podcasts.apple.com/tw/podcast/id1659198934"
   },
-  "latest": null
+  "latest": {
+    "title": "EP100.複利的加速器",
+    "date": "2026-10-03T20:46:13+08:00",
+    "url": "https://podcasts.apple.com/tw/podcast/ep100-%E8%A4%87%E5%88%A9%E7%9A%84%E5%8A%A0%E9%80%9F%E5%99%A8/id1659198934?i=1000792979885&uo=4",
+    "image": "https://media.rss.com/graceschool/ep_cover_20261003_122256_7b593f33346be841e294ab1442c4ec2d.jpg",
+    "duration": "50:47"
+  }
 }
