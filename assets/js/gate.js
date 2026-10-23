@@ -1,6 +1,6 @@
 /* 測驗前關卡：撕票後滑出的儀式卡（登入）、頂部頭像 chip、靜音鈕
    - 未登入：儀式卡顯示 LINE（主）／Google（次）、登入告知（取得名稱、大頭貼、電子郵件與用途）＋隱私權政策連結
-   - App 內建瀏覽器：不在此登入，卡片只放「請先用瀏覽器開啟，才能登入」的開啟方式，沒有 LINE／Google 鈕與登入告知
+   - App 內建瀏覽器：不在此登入，卡片只放「請開啟瀏覽器，進入測驗!!」的開啟方式，沒有 LINE／Google 鈕與登入告知
        IG、Threads、Facebook（iOS）：只有右上角選單說明（大插圖＋指向右上角的箭頭，香檳金輕脈動）
        Android：「用 Chrome 開啟」（intent://，附 browser_fallback_url）＋同一則選單說明
        LINE 內建：「用瀏覽器開啟」（openExternalBrowser=1）單一按鈕；按下後約 1.5 秒頁面仍在前景 → 顯示選單說明
@@ -8,11 +8,11 @@
    - 登入成功（Google 當下、LINE 授權返回）：收起儀式卡，直接進第一題，不再多一個「開始作答」畫面
    - 已登入回訪：撕票後直接進第一題
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc, reduced } from './core.js?v=20261023b';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023b';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023b';
-import { track } from './track.js?v=20261023b';
-import { OA_URL } from './quiz.js?v=20261023b';
+import { $, $$, esc, reduced } from './core.js?v=20261023c';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023c';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023c';
+import { track } from './track.js?v=20261023c';
+import { OA_URL } from './quiz.js?v=20261023c';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最接近平常的那一項就好';
@@ -32,7 +32,7 @@ const ERR = {
 export const webviewText = (n) => `${n || 'App'} 內建瀏覽器無法使用 Google 登入`;
 export const errText = (code) => (code === 'webview' ? webviewText(inAppName()) + '，請先在瀏覽器開啟' : ERR[code] || '登入未完成，請再試一次');
 /** App 內建瀏覽器卡片標題 */
-export const INAPP_TITLE = '請先用瀏覽器開啟，才能登入';
+export const INAPP_TITLE = '請開啟瀏覽器，進入測驗!!';
 /** App 右上角選單步驟（iOS 為 ⋯、Android 為 ⋮；LINE 與其他 App 選單名稱不一，用通稱）；html＝true 時強調按鍵與選項 */
 export function menuStep(n, os, html = false) {
   const [key, item] = n === 'App' || n === 'LINE' ? ['選單', '用瀏覽器開啟'] : os === 'android' ? ['⋮', '在瀏覽器中開啟'] : ['⋯', '在外部瀏覽器開啟'];

@@ -8,9 +8,9 @@
      外部開啟（帶 ?go=login，重新開啟時直接到登入卡）：LINE 內建 openExternalBrowser=1、Android intent:// 交給 Chrome，
      iOS 只能靠 App 右上角選單（x-safari-https:// 實機不一定被放行，已移除）；顯示說明時以 markLoginUrl 把目前網址改成登入網址，選單開啟的網址即直接到登入卡
    - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state' */
-import { config } from './config.js?v=20261023b';
-import { post } from './api.js?v=20261023b';
-import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023b';
+import { config } from './config.js?v=20261023c';
+import { post } from './api.js?v=20261023c';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023c';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';
