@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { buildLiveData, isLiveTitle, safeError, run, LIVE_URL, MAX_EVENTS } from '../update_live.mjs';
+import { buildLiveData, isLiveTitle, safeError, run, diagnoseLive, LIVE_URL, MAX_EVENTS } from '../update_live.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIX = join(HERE, '..', 'fixtures');
@@ -74,7 +74,7 @@ test('錯誤訊息只輸出固定分類，不含網址', () => {
 
 // 以子程序執行，擷取真正的 stdout／stderr（等同 GitHub Actions 紀錄）
 const execFileP = promisify(execFile);
-async function runChild(mode) {
+async function runChild(mode, extraEnv = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'gia-live-'));
   const out = join(dir, 'live.json');
   const mod = pathToFileURL(join(HERE, '..', 'update_live.mjs')).href;
@@ -87,13 +87,14 @@ async function runChild(mode) {
       if (mode === 'throw') throw new TypeError('fetch failed: getaddrinfo ENOTFOUND ' + url);
       if (mode === '404') return { ok: false, status: 404, text: async () => '' };
       if (mode === 'html') return { ok: true, status: 200, text: async () => '<html>' + url + '</html>' };
-      return { ok: true, status: 200, text: async () => ics };
+      const bytes = new TextEncoder().encode(ics);
+      return { ok: true, status: 200, text: async () => ics, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
     };
     process.exitCode = await run({ fetchImpl, now: new Date('2026-10-21T10:00:00Z'), outPath: ${JSON.stringify(out)} });
   `;
   let stdout = '', stderr = '', exit = 0;
   try {
-    ({ stdout, stderr } = await execFileP(process.execPath, ['--input-type=module', '-e', code], { env: { ...process.env, LIVE_ICS_URL: ICS_URL } }));
+    ({ stdout, stderr } = await execFileP(process.execPath, ['--input-type=module', '-e', code], { env: { ...process.env, LIVE_ICS_URL: ICS_URL, ...extraEnv } }));
   } catch (e) {
     ({ stdout, stderr } = e); exit = e.code;
   }
@@ -117,6 +118,40 @@ test('實際執行：stdout／stderr 只有 IG直播 計數與成功訊息，不
   assert.equal(saved.events.length, 8);
   assert.deepEqual(leaks(r.file), []);
   for (const e of saved.events) assert.deepEqual(Object.keys(e), ['title', 'start', 'end', 'url']);
+});
+
+test('診斷模式（DIAG=1）：只印計數、布林值與候選的時間／結構，不含標題、網址、日曆識別碼', async () => {
+  const r = await runChild('ok', { DIAG: '1' });
+  assert.equal(r.exit, 0);
+  assert.equal(r.stderr, '');
+  const lines = r.stdout.trim().split('\n');
+  const diag = lines.filter((l) => l.startsWith('診斷 '));
+  assert.ok(diag.length >= 5);
+  assert.match(diag.find((l) => l.startsWith('診斷 網址')), /日曆ID=grace63188@gmail.com no；日曆ID=b0970111728@gmail.com no；次要日曆\(group\) no；私人網址 yes；公開網址 no/);
+  assert.match(diag.find((l) => l.startsWith('診斷 行事曆')), /名稱長度>0 yes；名稱=grace63188@gmail.com no；X-WR-TIMEZONE 有效 yes/);
+  assert.match(diag.find((l) => l.startsWith('診斷 事件')), /VEVENT 總數 \d+；落在時間窗 \d+；已取消 \d+；無法解析 \d+；最早年份 \d{4}；最晚年份 \d{4}/);
+  assert.match(diag.find((l) => l.startsWith('診斷 近似標題')), /：\d+ 筆；其中完全相等 \d+ 筆/);
+  const cands = diag.filter((l) => l.startsWith('診斷 候選'));
+  assert.ok(cands.length >= 5);
+  for (const c of cands) assert.match(c, /^診斷 候選：開始 (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00|-)；全天 (yes|no)；重複 (yes|no)；單次修改 (yes|no)；已取消 (yes|no)；落在時間窗 (yes|no)；完全相等 (yes|no)；正規化長度 \d+$/);
+  assert.deepEqual(lines.filter((l) => !l.startsWith('診斷 ')), ['IG直播 8 場', 'IG直播 略過 1 筆（全天或無法解析）', '成功：data/live.json 已更新']);
+  assert.deepEqual(leaks(r.stdout + r.stderr), []);
+  assert.ok(!/https?:\/\//.test(r.stdout + r.stderr));
+});
+
+test('診斷模式未開啟時輸出不變', async () => {
+  const r = await runChild('ok', { DIAG: '0' });
+  assert.ok(!r.stdout.includes('診斷'));
+});
+
+test('診斷網址布林值：主要日曆、次要日曆、公開網址', () => {
+  const NOWD = new Date('2026-10-21T10:00:00Z');
+  const line = (url) => diagnoseLive(ics, url, { now: NOWD })[0];
+  assert.match(line('https://calendar.google.com/calendar/ical/grace63188%40gmail.com/private-abc/basic.ics'), /日曆ID=grace63188@gmail.com yes；日曆ID=b0970111728@gmail.com no；次要日曆\(group\) no；私人網址 yes；公開網址 no/);
+  assert.match(line('https://calendar.google.com/calendar/ical/b0970111728%40gmail.com/public/basic.ics'), /日曆ID=grace63188@gmail.com no；日曆ID=b0970111728@gmail.com yes；次要日曆\(group\) no；私人網址 no；公開網址 yes/);
+  assert.match(line('https://calendar.google.com/calendar/ical/abc123%40group.calendar.google.com/private-xyz/basic.ics'), /次要日曆\(group\) yes；私人網址 yes/);
+  assert.match(line('not a url'), /日曆ID=grace63188@gmail.com no；.*私人網址 no；公開網址 yes/);
+  for (const l of diagnoseLive(ics, 'https://calendar.google.com/calendar/ical/x/private-y/basic.ics', { now: NOWD })) assert.deepEqual(leaks(l), [], l);
 });
 
 for (const mode of ['throw', '404', 'html']) {

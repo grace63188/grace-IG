@@ -2,7 +2,7 @@
 // 執行：node --test scripts/tests/*.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLiveData, isLiveTitle, normalizeTitle, windowEndMs } from '../update_live.mjs';
+import { buildLiveData, isLiveTitle, normalizeTitle, titleCore, windowEndMs } from '../update_live.mjs';
 import { toTaipeiISO } from '../lib/common.mjs';
 import { collectOccurrences } from '../lib/ics.mjs';
 
@@ -20,10 +20,22 @@ test('標題正規化：全形英數、零寬字元、BOM、不換行空白皆�
   assert.equal(normalizeTitle('ＩＧ　直播'), 'IG直播');
 });
 
-test('標題仍為完全相等：加字、表情符號、括號不會被取用', () => {
-  for (const no of ['IG直播 🔴', '【IG直播】', 'IG直播準備會議', '校長IG直播', '校長 ＩＧ 直播', 'FB直播']) {
+test('頭尾表情符號、星號與一層括號會被去掉後比對', () => {
+  for (const ok of ['⭐《IG直播》', '《IG直播》', '⭐IG直播', '★《ＩＧ直播》', '⭐️《IG直播》⭐️', 'IG直播 🔴', '【IG直播】', '🔴 IG直播', '「IG直播」', '✨【 IG 直播 】✨']) {
+    assert.equal(isLiveTitle(ok), true, ok);
+    assert.equal(titleCore(ok), 'IG直播', ok);
+  }
+});
+
+test('標題仍為完全相等：加字、主題、非成對括號不會被取用', () => {
+  for (const no of ['《直播預告》10月25日IG直播（線上）', 'IG直播準備會議', '校長IG直播', '校長 ＩＧ 直播', '《IG直播》｜主題', '《IG直播》主題', 'IG直播：主題', '⭐《IG直播》《第二場》', 'FB直播', '直播', '《》', '⭐']) {
     assert.equal(isLiveTitle(no), false, no);
   }
+});
+
+test('⭐《IG直播》的單次行程會被取用，網站標題固定為 IG直播', () => {
+  const d = buildLiveData(timed('⭐《IG直播》'), { now: NOW });
+  assert.deepEqual(d.events.map((e) => [e.title, e.start]), [['IG直播', '2026-10-25T19:30:00+08:00']]);
 });
 
 test('「校長IG直播」等非完全相等標題不會被取用', () => {

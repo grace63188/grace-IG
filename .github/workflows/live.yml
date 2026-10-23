@@ -6,6 +6,13 @@ on:
     # GitHub 排程可能延遲數分鐘至數十分鐘
     - cron: '0 15 28-31 * *'
   workflow_dispatch:
+    inputs:
+      diag:
+        description: '診斷模式（1＝印出隱私安全的計數與結構資訊；不印標題、網址）'
+        required: false
+        default: '0'
+        type: choice
+        options: ['0', '1']
 
 permissions:
   contents: write
@@ -55,6 +62,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         env:
           LIVE_ICS_URL: ${{ secrets.LIVE_ICS_URL }}
+          DIAG: ${{ github.event_name == 'workflow_dispatch' && inputs.diag || '0' }}
         run: node scripts/update_live.mjs
 
       - name: 有變更才 commit 並 push

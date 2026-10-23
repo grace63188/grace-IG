@@ -17,8 +17,11 @@ export function toTaipeiISO(date) {
   );
 }
 
-/** 取得文字內容；非 2xx 或逾時即丟出錯誤 */
-export async function fetchText(url, { fetchImpl = globalThis.fetch, timeoutMs = 20000, label = url } = {}) {
+/**
+ * 取得文字內容；非 2xx 或逾時即丟出錯誤。
+ * raw=true 時回傳 Uint8Array（回應物件不支援 arrayBuffer 則退回文字），供呼叫端自行在位元組層級處理。
+ */
+export async function fetchText(url, { fetchImpl = globalThis.fetch, timeoutMs = 20000, label = url, raw = false } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -28,6 +31,7 @@ export async function fetchText(url, { fetchImpl = globalThis.fetch, timeoutMs =
       redirect: 'follow',
     });
     if (!res.ok) throw new Error(`${label} 回應 HTTP ${res.status}`);
+    if (raw && typeof res.arrayBuffer === 'function') return new Uint8Array(await res.arrayBuffer());
     return await res.text();
   } catch (err) {
     if (err.name === 'AbortError') throw new Error(`${label} 逾時（${timeoutMs}ms）`);

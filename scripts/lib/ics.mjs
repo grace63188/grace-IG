@@ -12,6 +12,32 @@ export function unfold(text) {
   return String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n[ \t]/g, '');
 }
 
+/**
+ * 位元組層級的折行還原後再解碼 UTF-8。
+ * RFC 5545 以 75「位元組」折行；中文每字 3 位元組，若折行切在一個字中間，先逐行解碼再還原會把該字變成 U+FFFD。
+ * 先在位元組層級移除 CRLF/LF/CR + 空白（或 Tab），再整體解碼即可避免。
+ */
+export function unfoldBytes(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const out = new Uint8Array(u8.length);
+  let n = 0;
+  for (let i = 0; i < u8.length; i++) {
+    const c = u8[i];
+    if (c === 13 || c === 10) {
+      let j = i + 1;
+      if (c === 13 && u8[j] === 10) j++;
+      if (u8[j] === 32 || u8[j] === 9) { i = j; continue; } // 折行：整段丟棄
+    }
+    out[n++] = c;
+  }
+  return out.subarray(0, n);
+}
+
+/** 原始位元組 → 已還原折行的 ICS 文字 */
+export function decodeIcsBytes(bytes) {
+  return new TextDecoder('utf-8').decode(unfoldBytes(bytes));
+}
+
 export function unescapeText(v) {
   return String(v ?? '').replace(/\\([\\;,nN])/g, (_, c) => (c === 'n' || c === 'N' ? '\n' : c));
 }
@@ -389,6 +415,51 @@ export function collectOccurrences(icsText, { now = Date.now(), days = 60, defau
 
   results.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
   return results;
+}
+
+/**
+ * 診斷用：逐一整理每個 VEVENT 的結構資訊（不展開、不篩選）。
+ * 回傳的 summary 僅供呼叫端在記憶體內比對，呼叫端不得印出。
+ * inWindow：單次事件以 DTSTART/DTEND 判斷；重複事件以展開後是否有任何一次落在窗內判斷。
+ */
+export function summarizeEvents(icsText, { now = Date.now(), windowEnd = now + 60 * DAY_MS, defaultTz = 'Asia/Taipei' } = {}) {
+  const parsed = parseIcs(icsText);
+  const tz = parsed.calTz || defaultTz;
+  const calName = (() => {
+    for (const raw of unfold(icsText).split('\n')) {
+      const p = parseLine(raw.trimEnd());
+      if (p && p.name === 'X-WR-CALNAME') return unescapeText(p.value).trim();
+      if (p && p.name === 'BEGIN' && p.value.toUpperCase() === 'VEVENT') break;
+    }
+    return '';
+  })();
+  const rows = [];
+  for (const ev of parsed.events) {
+    const row = { summary: eventSummary(ev), recurring: !!first(ev, 'RRULE'), override: !!first(ev, 'RECURRENCE-ID'), cancelled: isCancelled(ev), parsed: false, allDay: null, startMs: null, year: null, inWindow: false };
+    try {
+      const ds = first(ev, 'DTSTART');
+      if (!ds) { rows.push(row); continue; }
+      const start = parseDateValue(ds.value, ds.params, tz);
+      let dur;
+      const de = first(ev, 'DTEND');
+      const du = first(ev, 'DURATION');
+      if (de) dur = parseDateValue(de.value, de.params, tz).ms - start.ms;
+      else if (du) dur = parseDuration(du.value);
+      if (dur == null || Number.isNaN(dur) || dur < 0) dur = start.allDay ? DAY_MS : 0;
+      row.parsed = true;
+      row.allDay = start.allDay;
+      row.startMs = start.ms;
+      row.year = start.wall.y;
+      if (row.recurring) {
+        const { occurrences } = expandRrule(start, parseRrule(first(ev, 'RRULE').value), { windowEnd, defaultTz: tz });
+        row.inWindow = occurrences.some((ms) => ms + dur > now && ms <= windowEnd);
+      } else {
+        row.inWindow = start.ms + dur > now && start.ms <= windowEnd;
+      }
+    } catch { /* parsed 維持 false */ }
+    rows.push(row);
+  }
+  return { calName, calTz: parsed.calTz, rows };
 }
 
 export { utcToWall };
