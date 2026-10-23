@@ -3,3 +3,21 @@
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
+
+/admin/admin.*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/admin/admin.*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/admin/img/*
+  Cache-Control: public, max-age=604800
+
+/admin/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/admin/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/admin/config.js
+  Cache-Control: public, max-age=300
