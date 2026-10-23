@@ -13,15 +13,15 @@
 <meta property="og:title" content="@grace.wwwwwwww資源平台">
 <meta property="og:description" content="學院課程、體驗課程、一對一諮詢、自我測驗、內容頻道、限時活動與客服窗口，一頁找到。">
 <meta property="og:url" content="https://grace63188.github.io/grace-IG/">
-<meta property="og:image" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261023d">
-<meta property="og:image:secure_url" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261023d">
+<meta property="og:image" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261023e">
+<meta property="og:image:secure_url" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261023e">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="G.R.A.C.E Academy">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="@grace.wwwwwwww資源平台">
-<meta name="twitter:image" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261023d">
+<meta name="twitter:image" content="https://grace63188.github.io/grace-IG/assets/og.jpg?v=20261023e">
 <link rel="canonical" href="https://grace63188.github.io/grace-IG/">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
 <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
@@ -32,13 +32,13 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&amp;family=Noto+Sans+TC:wght@300;400;500&amp;display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&amp;family=Noto+Sans+TC:wght@300;400;500&amp;display=swap"></noscript>
 <link rel="preload" as="image" href="assets/img/logo-engraved.webp" type="image/webp">
-<link rel="stylesheet" href="assets/css/site.css?v=20261023d">
-<link rel="stylesheet" href="assets/css/v6.css?v=20261023d">
-<link rel="stylesheet" href="assets/css/v7.css?v=20261023d">
-<link rel="stylesheet" href="assets/css/intro.css?v=20261023d">
+<link rel="stylesheet" href="assets/css/site.css?v=20261023e">
+<link rel="stylesheet" href="assets/css/v6.css?v=20261023e">
+<link rel="stylesheet" href="assets/css/v7.css?v=20261023e">
+<link rel="stylesheet" href="assets/css/intro.css?v=20261023e">
 <!-- 開場模式：網址帶 ?go=login（從 App 內建瀏覽器換到瀏覽器）→ none 並記為看過，直接到登入卡；?intro=1 → full（強制重看）；本裝置看過（localStorage grace.intro.seen，存不了時看 sessionStorage）→ none（直接首頁）；從登入返回 → brief（Logo 短暫淡出）；其餘（第一次造訪）→ full。儲存空間讀取失敗一律視為沒看過。intro.js 未在 5 秒內載入時直接放行首頁 -->
 <script>(function(d){d.classList.add('js');var K='grace.intro.seen',q='',s=false,m='full';try{q=location.search}catch(e){}try{s=localStorage.getItem(K)==='1'}catch(e){}if(!s){try{s=sessionStorage.getItem(K)==='1'}catch(e){}}if(/[?&]go=login(&|$)/.test(q)){m='none';try{localStorage.setItem(K,'1')}catch(e){try{sessionStorage.setItem(K,'1')}catch(x){}}}else if(/[?&]intro=1(&|$)/.test(q))m='full';else if(s)m='none';else if(/[?&]auth=/.test(q))m='brief';d.setAttribute('data-intro',m);if(m==='none')return;d.classList.add('intro-'+m,'intro-hold');setTimeout(function(){if(!window.__introOk)d.classList.remove('intro-full','intro-brief','intro-hold')},5000)})(document.documentElement);</script>
-<script type="module" src="assets/js/v6.js?v=20261023d"></script>
+<script type="module" src="assets/js/v6.js?v=20261023e"></script>
 </head>
 <body>
 <!-- 開場儀式（intro.js）：霧面底＋Logo（光暈呼吸、光澤掃過）＋ENTER（文字＋箭頭＋髮絲線）；SKIP 在右上角
@@ -163,11 +163,12 @@
         <span class="k-s" id="k-event-s"><span class="gold">五週年慶</span> 剩 <b class="en" id="k-event-d">--</b> 天</span>
         <svg class="i k-go" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
       </button>
-      <button class="k obs" style="--i:3" type="button" data-open="live" aria-haspopup="dialog" data-ev="key.live" id="k-live">
-        <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-live"/></svg>
-        <span class="k-n">收看直播</span>
-        <span class="k-s" id="k-live-s">下一場 <b class="en">10.25 19:30</b></span>
+      <button class="k obs kl kl-a" style="--i:3" type="button" data-open="live" aria-haspopup="dialog" data-ev="key.live" id="k-live" aria-label="收看直播">
+        <span class="kl-tag" id="kl-tag"><i class="ldot" id="kl-dot" aria-hidden="true"></i><span id="kl-tag-t">下次開播</span></span>
         <svg class="i k-go" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
+        <span class="kl-date gold-num en" id="kl-date">--<span class="dt">.</span>--</span>
+        <span class="kl-when" id="kl-when"></span>
+        <span class="k-n">收看直播</span>
       </button>
       <button class="k obs" style="--i:4" type="button" data-open="follow" aria-haspopup="dialog" data-ev="key.follow">
         <svg class="i k-ic" aria-hidden="true" focusable="false"><use href="#i-signal"/></svg>
@@ -291,14 +292,17 @@
     <div class="grab" aria-hidden="true"></div>
     <header class="sh-top"><h2 id="s-live-h">收看直播</h2><button class="bead round x" type="button" data-close aria-label="關閉"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button></header>
     <div class="sh-body">
-      <div class="lv well" id="lv-box">
-        <p class="lv-k"><i class="cd onair" aria-hidden="true"></i><span id="lv-state">下一場</span>・<span id="lv-name">IG直播</span></p>
-        <p class="lv-when en" id="lv-when">2026.10.25<span>19:30</span></p>
-        <p class="lv-more" id="lv-more" hidden></p>
+      <div class="lvx well" id="lv-box">
+        <p class="lv-k" id="lv-k"><i class="ldot" id="lv-dot" aria-hidden="true"></i><span id="lv-state">下次開播</span><i class="sep" id="lv-sep">・</i><span id="lv-name">IG直播</span></p>
+        <p class="big-date en" id="lv-date"><span class="yr">----.</span>--.--</p>
+        <p class="big-when" id="lv-when"></p>
+        <p class="cdn-k" id="lv-cdn-k">開播倒數</p>
+        <div class="cdn" id="lv-cdn" role="timer" aria-label="開播倒數"><div><b class="en" data-u="d">--</b><span>天</span></div><div><b class="en" data-u="h">--</b><span>時</span></div><div><b class="en" data-u="m">--</b><span>分</span></div><div><b class="en" data-u="s">--</b><span>秒</span></div></div>
       </div>
-      <p class="lv-empty" id="lv-empty" hidden>直播時間公告於校長 IG</p>
-      <ol class="flow" style="--n:2" id="lv-flow"><li id="lv-cal-li"><a class="st st-link" id="live-cal" href="https://calendar.google.com/calendar/render" target="_blank" rel="noopener" data-ev="live.calendar"><i class="sw bead" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-cal"/></svg></i><span class="sl">加入行事曆<svg class="i ar" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a></li><li><span class="st"><i class="sw" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-ig"/></svg></i><span class="sl">進入校長 IG</span></span></li></ol>
-      <a class="cta cta-main gl gl-ink" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener" data-ev="live.ig"><span>前往校長 IG</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+      <div class="acts">
+        <a class="cta cta-main gl gl-ink" id="live-cal" href="https://calendar.google.com/calendar/render" target="_blank" rel="noopener" data-ev="live.calendar"><span class="lbl"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-cal"/></svg>加入行事曆</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+        <a class="cta cta-sec gl gl-clear" id="live-ig" href="https://www.instagram.com/grace.wwwwwwww" target="_blank" rel="noopener" data-ev="live.ig"><span class="lbl"><svg class="i lead" aria-hidden="true" focusable="false"><use href="#i-ig"/></svg>前往校長 IG</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-ext"/></svg></span></a>
+      </div>
     </div>
   </section>
 

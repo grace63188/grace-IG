@@ -34,10 +34,11 @@ test('標題比對：去除空白、轉大寫後完全等於 IG直播（不做�
   for (const no of ['IG直播準備會議', '我的IG直播心得', '直播', 'IG', 'IG直播2', 'FB直播', '', null, undefined]) assert.equal(isLiveTitle(no), false, String(no));
 });
 
-test('只輸出 IG直播：固定標題與網址、只有允許欄位、最多 5 場、排除過期與 60 天外', () => {
+test('只輸出 IG直播：固定標題與網址、只有允許欄位、排除過期與下個月底之後', () => {
   const data = buildLiveData(ics, { now: NOW });
   assert.deepEqual(Object.keys(data), ['updated', 'events']);
-  assert.equal(MAX_EVENTS, 5);
+  assert.equal(MAX_EVENTS, 40);
+  // NOW = 10/21 → 時間窗到 11/30 23:59:59（台北）
   assert.deepEqual(data.events, [
     // 每週五系列（RRULE 展開）；10-30 那一次被改名為私人行程 → 從系列移除且不輸出
     { title: 'IG直播', start: '2026-10-23T20:00:00+08:00', end: '2026-10-23T21:30:00+08:00', url: LIVE_URL },
@@ -45,6 +46,9 @@ test('只輸出 IG直播：固定標題與網址、只有允許欄位、最多 5
     { title: 'IG直播', start: '2026-10-28T20:00:00+08:00', end: '2026-10-28T21:00:00+08:00', url: LIVE_URL }, // 「IG 直播」
     { title: 'IG直播', start: '2026-10-30T12:00:00+08:00', end: '2026-10-30T13:00:00+08:00', url: LIVE_URL }, // 「ig直播」
     { title: 'IG直播', start: '2026-11-06T20:00:00+08:00', end: '2026-11-06T21:30:00+08:00', url: LIVE_URL },
+    { title: 'IG直播', start: '2026-11-13T20:00:00+08:00', end: '2026-11-13T21:30:00+08:00', url: LIVE_URL },
+    { title: 'IG直播', start: '2026-11-20T20:00:00+08:00', end: '2026-11-20T21:30:00+08:00', url: LIVE_URL },
+    { title: 'IG直播', start: '2026-11-27T20:00:00+08:00', end: '2026-11-27T21:30:00+08:00', url: LIVE_URL },
   ]);
   for (const e of data.events) assert.deepEqual(Object.keys(e), ['title', 'start', 'end', 'url']);
   assert.deepEqual(leaks(JSON.stringify(data)), []);
@@ -103,14 +107,14 @@ test('實際執行：stdout／stderr 只有 IG直播 計數與成功訊息，不
   assert.equal(r.exit, 0);
   assert.equal(r.stderr, '');
   assert.deepEqual(r.stdout.trim().split('\n'), [
-    'IG直播 5 場',
+    'IG直播 8 場',
     'IG直播 略過 1 筆（全天或無法解析）',
     '成功：data/live.json 已更新',
   ]);
   assert.deepEqual(leaks(r.stdout + r.stderr), []);
   assert.ok(!/https?:\/\//.test(r.stdout + r.stderr));
   const saved = JSON.parse(r.file);
-  assert.equal(saved.events.length, 5);
+  assert.equal(saved.events.length, 8);
   assert.deepEqual(leaks(r.file), []);
   for (const e of saved.events) assert.deepEqual(Object.keys(e), ['title', 'start', 'end', 'url']);
 });

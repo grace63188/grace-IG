@@ -10,11 +10,11 @@
      訪客此時撕票只會重畫同一張登入中卡（不會回到可再按一次登入的卡），完成即收起、直接進所選測驗第 1 題
    - 已登入回訪：撕票後直接進第一題
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc, reduced } from './core.js?v=20261023d';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023d';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023d';
-import { track } from './track.js?v=20261023d';
-import { OA_URL } from './quiz.js?v=20261023d';
+import { $, $$, esc, reduced } from './core.js?v=20261023e';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023e';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023e';
+import { track } from './track.js?v=20261023e';
+import { OA_URL } from './quiz.js?v=20261023e';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最接近平常的那一項就好';

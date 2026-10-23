@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// 更新 data/live.json：讀取 Google 日曆私人 iCal 網址（secret LIVE_ICS_URL）→ 未來 60 天的「IG直播」
+// 更新 data/live.json：讀取 Google 日曆私人 iCal 網址（secret LIVE_ICS_URL）→ 從現在到「下個月底」（台北時間）的「IG直播」
+// 排程：每月最後一天台北 23:00 執行一次，載入下個月整月；手動執行則為本月剩餘＋下個月
 // 不需額外套件（Node 20+ 內建 fetch）。
 //
 // 隱私規則（repo 與 Actions 紀錄皆為公開）：
-// - 只採用標題為「IG直播」的行程（去除所有空白、轉大寫後完全相等；不做「包含」比對）
+// - 只採用標題為「IG直播」的行程（全形轉半形、去除空白、轉大寫後完全相等；不做「包含」比對）
 // - 其他行程在解析時間之前就被丟棄，任何內容都不會寫入檔案或印到 console
 // - 輸出每筆只有 title（固定 "IG直播"）、start、end、url（固定校長 IG）
 // - console 只印場次數與成功／失敗；不印 ICS 網址、其他行程的數量、標題、時間
@@ -15,24 +16,39 @@ import { collectOccurrences } from './lib/ics.mjs';
 export const LIVE_TITLE = 'IG直播';
 export const LIVE_URL = 'https://www.instagram.com/grace.wwwwwwww';
 export const DEFAULT_URL = LIVE_URL; // 舊名稱相容
-export const WINDOW_DAYS = 60;
-export const MAX_EVENTS = 5;
+export const MAX_EVENTS = 40; // 約兩個月的場次上限；網站只顯示下一場（已結束的由前端略過）
+
+const TPE_OFFSET_MS = 8 * 60 * 60 * 1000; // 台灣無日光節約
+
+/** 時間窗結束：下個月最後一刻（台北時間），即「下下個月 1 日 00:00 台北」前 1 毫秒 */
+export function windowEndMs(now = new Date()) {
+  const t = new Date(now.getTime() + TPE_OFFSET_MS);
+  return Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 2, 1) - TPE_OFFSET_MS - 1;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_PATH = resolve(__dirname, '..', 'data', 'live.json');
 
-const LIVE_KEY = LIVE_TITLE.replace(/\s+/gu, '').toUpperCase();
+/** 標題正規化：全形轉半形（NFKC）、去除所有空白與零寬字元、轉大寫 */
+export function normalizeTitle(s) {
+  return String(s ?? '')
+    .normalize('NFKC')
+    .replace(/[\s​-‍⁠﻿]+/gu, '')
+    .toUpperCase();
+}
 
-/** 標題比對：去除所有空白（含全形空白）、轉大寫後等於「IG直播」 */
+const LIVE_KEY = normalizeTitle(LIVE_TITLE);
+
+/** 標題比對：正規化後完全等於「IG直播」（不做包含比對） */
 export function isLiveTitle(summary) {
-  return String(summary ?? '').replace(/\s+/gu, '').toUpperCase() === LIVE_KEY;
+  return normalizeTitle(summary) === LIVE_KEY;
 }
 
 /** 由 ICS 文字產生輸出物件（純函式，供測試）。warn 只會收到 IG直播 行程的訊息。 */
 export function buildLiveData(icsText, { now = new Date(), warn = () => {} } = {}) {
   const occ = collectOccurrences(icsText, {
     now: now.getTime(),
-    days: WINDOW_DAYS,
+    days: (windowEndMs(now) - now.getTime()) / 86400000,
     defaultTz: 'Asia/Taipei',
     fallbackUrl: LIVE_URL,
     warn,

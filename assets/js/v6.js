@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023d';
-import { initQuiz } from './quiz.js?v=20261023d';
-import { initTickets } from './ticket.js?v=20261023d';
-import { loadConfig } from './config.js?v=20261023d';
-import { initSound, sfx } from './sound.js?v=20261023d';
-import { initTracking, track } from './track.js?v=20261023d';
-import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023d';
-import { initGate, errText } from './gate.js?v=20261023d';
-import { initIntro } from './intro.js?v=20261023d';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023e';
+import { initQuiz } from './quiz.js?v=20261023e';
+import { initTickets } from './ticket.js?v=20261023e';
+import { loadConfig } from './config.js?v=20261023e';
+import { initSound, sfx } from './sound.js?v=20261023e';
+import { initTracking, track } from './track.js?v=20261023e';
+import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023e';
+import { initGate, errText } from './gate.js?v=20261023e';
+import { initIntro } from './intro.js?v=20261023e';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -54,12 +54,14 @@ function openSheet(name, from, { ritual = false } = {}) {
     if (!ritual) sfx('slide', { delay: 0.04 });
   }
   if (name === 'event') paintCampaign(now());
+  if (name === 'live') liveStart(); else liveStop();
   setTimeout(() => { const h = next.querySelector('h2'); h.tabIndex = -1; h.focus({ preventScroll: true }); }, 30);
 }
 
 function closeSheet(instant, via) {
   if (!cur) return;
   const s = cur; cur = null;
+  liveStop();
   if (via) track(`${s.id.slice(2)}.close`, 'close', { via });
   layer.classList.remove('on');
   s.style.removeProperty('--drag');
@@ -216,11 +218,11 @@ function paintCampaign(t) {
 }
 
 /* ---------- 直播 ---------- */
-/* 加入行事曆（Google 日曆範本）：標題固定「校長IG直播」、說明固定兩行、地點為校長 IG；時間照 live.json
+/* 加入行事曆（Google 日曆範本）：標題固定「校長IG直播」、說明固定兩行（傳送門＋不見不散）、地點為校長 IG；時間照 live.json
    畫面上的「IG直播」字樣不受影響 */
 export const GCAL_TITLE = '校長IG直播';
 export const GCAL_IG = 'https://www.instagram.com/grace.wwwwwwww';
-export const GCAL_DETAILS = `不見不散，校長在等你🤍\n${GCAL_IG}`;
+export const GCAL_DETAILS = `傳送門：${GCAL_IG}\n不見不散，校長在等妳💗`;
 export function gcalUrl(e) {
   const f = (t) => new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const q = ['action=TEMPLATE', `text=${encodeURIComponent(GCAL_TITLE)}`, `dates=${f(ts(e.start))}/${f(ts(e.end))}`,
@@ -228,41 +230,107 @@ export function gcalUrl(e) {
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 
-let liveKey = '';
+/* 收看直播（A：日期主視覺）
+   三種狀態：排定（下次開播＋大字日期＋倒數）／直播中（start ≤ 現在 < end）／未排定（霧面「下次開播時間即將公布」，入口鍵不隱藏）
+   卡面只在狀態或場次改變時重畫；底部卡片倒數每秒一次，只在卡片開啟且頁面可見時計時 */
+const WK = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+const wk = (t) => WK[new Date(t + 8 * 3600e3).getUTCDay()];
+let liveKey = '', liveNext = null, liveOn = false;
+
+function upcoming(t) {
+  return events.filter((e) => Number.isFinite(ts(e.start)) && Number.isFinite(ts(e.end)) && ts(e.end) > t).sort((a, b) => ts(a.start) - ts(b.start));
+}
+
 function paintLive(t) {
-  const up = events.filter((e) => Number.isFinite(ts(e.start)) && Number.isFinite(ts(e.end)) && ts(e.end) > t).sort((a, b) => ts(a.start) - ts(b.start));
-  const e = up[0], on = !!e && t >= ts(e.start);
+  const e = upcoming(t)[0], on = !!e && t >= ts(e.start);
   const k = e ? `${e.start}|${e.end}|${e.title}|${on}` : 'none';
   if (k === liveKey) return;
-  liveKey = k;
-  const now_ = $('.now');
-  now_.classList.toggle('is-live', on);
-  $('#k-live').classList.toggle('k-live-on', on);
+  const first = liveKey === '';
+  liveKey = k; liveNext = e || null; liveOn = on;
+  $('.now').classList.toggle('is-live', on);
+  const key = $('#k-live'), dot = $('#kl-dot'), box = $('#lv-box');
+  key.classList.toggle('k-off', !e); key.classList.toggle('obs', !!e); key.classList.toggle('kl-on', on);
+  if (!first) { key.classList.remove('kl-in'); void key.offsetWidth; key.classList.add('kl-in'); }   /* 換場次時日期再淡入一次 */
+  dot.hidden = !e; dot.classList.toggle('on', on);
+  $('#kl-tag').classList.toggle('on', on);
+  $('#lv-dot').hidden = !e; $('#lv-dot').classList.toggle('on', on);
+  box.classList.toggle('on', on); box.classList.toggle('tbd', !e);
+  $('#live-cal').hidden = !e || on;
+  const ig = $('#live-ig');                                                /* 只剩 IG 一顆時升為主鍵 */
+  ig.classList.toggle('gl-ink', !e || on); ig.classList.toggle('cta-main', !e || on);
+  ig.classList.toggle('gl-clear', !!e && !on); ig.classList.toggle('cta-sec', !!e && !on);
+  ['#lv-k', '#lv-when', '#lv-cdn-k', '#lv-cdn'].forEach((x) => { $(x).hidden = !e; });
+  $('#lv-cdn-k').hidden = $('#lv-cdn').hidden = !e || on;
+  const date = $('#kl-date'), when = $('#kl-when'), ld = $('#lv-date');
   if (!e) {
     $('#now-live').hidden = true;
-    $('#k-live-s').textContent = '追蹤校長 IG';
-    $('#lv-box').hidden = true; $('#lv-empty').hidden = false; $('#lv-cal-li').hidden = true;
-    $('#lv-flow').style.setProperty('--n', '1');
+    $('#kl-tag-t').textContent = '下次開播';
+    date.className = 'kl-tbd'; date.textContent = '即將公布';
+    when.className = 'k-off-s'; when.textContent = '下次開播時間';
+    key.setAttribute('aria-label', '收看直播：下次開播時間即將公布');
+    ld.className = 'lv-tbd'; ld.textContent = '下次開播時間即將公布';
     return;
   }
-  const s = ts(e.start), name = (typeof e.title === 'string' && e.title.trim()) || 'IG直播';
-  $('#now-live').hidden = false;
+  const s = ts(e.start), p = tpe(s), name = (typeof e.title === 'string' && e.title.trim()) || 'IG直播';
+  if ($('#now-live').hidden) { $('#now-live').hidden = false; $('#now-track').scrollLeft = 0; }   /* 直播項重新出現在最前面：捲軸對齊會留在原項，改回開頭 */
   $('#now-live-t').textContent = on ? '直播中' : `${md(s)} ${fmtHM(s)}`;
   $('#now-live-n').textContent = name;
-  $('#k-live-s').innerHTML = on ? '<i class="dot" aria-hidden="true"></i>直播中・前往收看' : `下一場 <b class="en">${md(s)} ${fmtHM(s)}</b>`;
-  $('#lv-box').hidden = false; $('#lv-empty').hidden = true;
-  $('#lv-box').classList.toggle('on', on);
-  $('#lv-state').textContent = on ? '直播中' : '下一場';
   $('#lv-name').textContent = name;
-  const w = $('#lv-when'); w.textContent = on ? 'LIVE' : fmtDate(s);
-  const sp = document.createElement('span'); sp.textContent = on ? `至 ${fmtHM(ts(e.end))}` : fmtHM(s); w.append(sp);
+  when.className = 'kl-when'; ld.className = 'big-date en';
+  if (on) {
+    $('#kl-tag-t').textContent = 'ON AIR';
+    date.className = 'kl-live'; date.textContent = '直播中';
+    when.innerHTML = `<span class="en">${fmtHM(s)}</span> 開播<i class="sep">・</i>前往收看`;
+    key.setAttribute('aria-label', `收看直播：直播中，${fmtHM(s)} 開播`);
+    $('#lv-state').textContent = 'ON AIR';
+    ld.className = 'big-live'; ld.textContent = '直播中';
+    $('#lv-when').innerHTML = `<span class="en">${fmtHM(s)}</span>開播<i class="sep">・</i>至<span class="en">${fmtHM(ts(e.end))}</span>`;
+  } else {
+    $('#kl-tag-t').textContent = '下次開播';
+    date.className = 'kl-date gold-num en'; date.innerHTML = `${pad(p.mo)}<span class="dt">.</span>${pad(p.d)}`;
+    when.innerHTML = `${wk(s)}<span class="en">${fmtHM(s)}</span>`;
+    key.setAttribute('aria-label', `收看直播：下次開播 ${fmtDate(s)} ${wk(s)} ${fmtHM(s)}`);
+    $('#lv-state').textContent = '下次開播';
+    ld.innerHTML = `<span class="yr">${p.y}.</span>${pad(p.mo)}.${pad(p.d)}`;
+    $('#lv-when').innerHTML = `${wk(s)}<span class="en">${fmtHM(s)}</span>開播`;
+  }
   const cal = $('#live-cal'); cal.href = gcalUrl(e); cal.setAttribute('aria-label', `加入行事曆：${GCAL_TITLE} ${fmtDate(s)} ${fmtHM(s)}`);
-  $('#lv-cal-li').hidden = on;
-  $('#lv-flow').style.setProperty('--n', on ? '1' : '2');
-  const more = up.slice(1, 3);
-  $('#lv-more').hidden = !more.length;
-  $('#lv-more').textContent = more.length ? `之後：${more.map((x) => `${fmtDate(ts(x.start))} ${fmtHM(ts(x.start))}`).join('、')}` : '';
+  liveCount(t, true);
 }
+
+/* 倒數：只換掉變更的位數（舊值上移淡出、新值自下淡入 180ms；減少動態時直接替換） */
+function roll(b, v, anim) {
+  const cur = b.dataset.v || '';
+  if (cur === v) return;
+  b.dataset.v = v;
+  if (!anim || cur.length !== v.length || reduced()) { b.innerHTML = [...v].map((c) => `<i class="dg"><i class="dv">${c}</i></i>`).join(''); return; }
+  [...b.children].forEach((g, i) => {
+    if (cur[i] === v[i]) return;
+    const old = g.lastElementChild, nx = document.createElement('i');
+    nx.className = 'dv in'; nx.textContent = v[i];
+    old.classList.add('out'); g.append(nx);
+    setTimeout(() => { old.remove(); nx.classList.remove('in'); }, 200);
+  });
+}
+function liveCount(t, force) {
+  if (!liveNext || liveOn || !(cur && cur.id === 's-live')) return;
+  let r = Math.max(0, Math.floor((ts(liveNext.start) - t) / 1000));
+  const d = Math.floor(r / 86400); r -= d * 86400;
+  const h = Math.floor(r / 3600); r -= h * 3600;
+  const m = Math.floor(r / 60), sec = r - m * 60;
+  const v = { d: pad(d), h: pad(h), m: pad(m), s: pad(sec) };
+  $$('#lv-cdn b').forEach((b) => roll(b, v[b.dataset.u], !force));
+  $('#lv-cdn').setAttribute('aria-label', `開播倒數 ${d} 天 ${h} 時 ${m} 分`);
+}
+let liveTimer = 0;
+function liveTick() { const t = now(); paintLive(t); liveCount(t); }
+function liveStart() {
+  liveStop();
+  if (document.hidden) return;
+  liveCount(now(), true);
+  liveTimer = setTimeout(function go() { liveTick(); liveTimer = setTimeout(go, 1000 - (now() % 1000) + 5); }, 1000 - (now() % 1000) + 5);
+}
+function liveStop() { clearTimeout(liveTimer); liveTimer = 0; }
 
 /* ---------- PODCAST ---------- */
 function applyPodcast(p) {
@@ -299,7 +367,14 @@ function initTimed(data) {
   if (ticking) return;
   ticking = true;
   drawFace();
-  setTimeout(() => { step(); setInterval(step, 1000); }, 1000 - (now() % 1000));
+  let iv = 0;
+  const run = () => { clearInterval(iv); iv = 0; if (document.hidden) return; step(); setTimeout(() => { if (!iv && !document.hidden) { step(); iv = setInterval(step, 1000); } }, 1000 - (now() % 1000)); };
+  run();
+  /* 頁面隱藏時停掉所有計時；回到前景立即補畫 */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { clearInterval(iv); iv = 0; liveStop(); return; }
+    run(); if (cur && cur.id === 's-live') liveStart();
+  });
   if (reduced()) $('#hand-s').classList.add('no-anim');
 }
 

@@ -2,8 +2,9 @@ name: 更新 IG直播 時間
 
 on:
   schedule:
-    # 每小時第 13 分（UTC）；GitHub 排程可能延遲數分鐘至數十分鐘
-    - cron: '13 * * * *'
+    # 每月 28–31 日 UTC 15:00 = 台北 23:00；只有「台北明天是 1 號」（月底最後一天）才真正執行
+    # GitHub 排程可能延遲數分鐘至數十分鐘
+    - cron: '0 15 28-31 * *'
   workflow_dispatch:
 
 permissions:
@@ -19,21 +20,45 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # 排程觸發時，只有台北時間明天是 1 號（或排程延遲後今天是 1 號）才繼續；手動執行（workflow_dispatch）一律執行
+      - name: 檢查是否為月底最後一天（台北時間）
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "手動執行：載入本月剩餘＋下個月。"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # 排程若延遲超過午夜，台北「今天」已是 1 號，也照常執行（時間窗仍涵蓋本月＋下個月）
+          tomorrow=$(TZ=Asia/Taipei date -d 'tomorrow' +%d)
+          today=$(TZ=Asia/Taipei date +%d)
+          if [ "$tomorrow" = "01" ] || [ "$today" = "01" ]; then
+            echo "月底（或排程延遲至 1 號）：載入下個月整月。"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "今天不是月底最後一天，略過。"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node
+        if: steps.gate.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       # 隱私：只取標題為「IG直播」的行程；此 repo 與執行紀錄皆公開，腳本不印網址與其他行程任何資訊
       - name: 讀取行事曆並更新 data/live.json
+        if: steps.gate.outputs.run == 'true'
         env:
           LIVE_ICS_URL: ${{ secrets.LIVE_ICS_URL }}
         run: node scripts/update_live.mjs
 
       - name: 有變更才 commit 並 push
+        if: steps.gate.outputs.run == 'true'
         run: |
           if [ -z "$(git status --porcelain -- data/live.json)" ]; then
             echo "data/live.json 無變更，不 commit。"

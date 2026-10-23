@@ -236,3 +236,112 @@
 @keyframes q-rite-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 /* 結果頁：加入學院官方 LINE（LINE 登入者） */
 .r-foot .cta-add{width:100%}
+
+/* =========================================================
+   收看直播｜A 日期主視覺（入口鍵＋底部卡片）
+   動態只用 transform／opacity；減少動態時改靜態燈號、數字直接替換；未排定（霧面）全程無動態
+   ========================================================= */
+:root{--live-red:#E0574F;--gold-text:linear-gradient(180deg,#FBF1DA 0%,#E2CB9A 48%,#B8975A 100%)}
+
+/* 直播燈：7px 燈心＋向外擴散的細環（排定＝香檳金 2.4s；直播中＝紅 1.4s） */
+.ldot{position:relative;display:inline-block;flex:none;width:7px;height:7px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#F6C2AE 0,#E0574F 52%,#A8322C 100%);box-shadow:0 0 6px rgba(224,87,79,.55)}
+.ldot::after{content:"";position:absolute;inset:-1px;border-radius:50%;box-shadow:0 0 0 1px rgba(226,203,154,.9);
+  animation:lring 2.4s var(--ease-out) infinite}
+.ldot.on::after{box-shadow:0 0 0 1.5px rgba(224,87,79,.95);animation-duration:1.4s}
+@keyframes lring{0%{transform:scale(1);opacity:.95}75%,100%{transform:scale(3.2);opacity:0}}
+.gold-num{font-family:var(--geo);font-variant-numeric:tabular-nums;background:var(--gold-text);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* 入口鍵 */
+.keys .k.kl{grid-template-columns:minmax(0,1fr) auto}
+.keys .kl-a{grid-template-rows:auto auto auto minmax(0,1fr) auto;grid-template-areas:"tag go" "date date" "when when" ". ." "n n"}
+.kl-tag{grid-area:tag;align-self:center;display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:500;letter-spacing:.16em;color:var(--obs-mute);line-height:1.2;white-space:nowrap;min-width:0}
+.kl-tag .ldot{margin:0 4px 0 3px}
+.kl-tag.on{color:#F08A82}
+.kl-a .k-go{margin-top:0;align-self:center}
+.kl-a .kl-date{grid-area:date;margin-top:7px;font-size:38px;font-weight:300;line-height:1;letter-spacing:-.025em;white-space:nowrap}
+.kl-a .kl-date .dt{font-weight:300;margin:0 .02em}
+.kl-a .kl-when{grid-area:when;margin-top:4px;font-size:13px;color:var(--obs-ink);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kl-a .kl-when .en{font-weight:500;letter-spacing:.02em;margin-left:4px;font-variant-numeric:tabular-nums}
+.kl-a .kl-when .sep{font-style:normal;margin:0 -.1em}
+.kl-a .kl-live{grid-area:date;margin-top:10px;font-size:28px;font-weight:400;letter-spacing:.14em;line-height:1.1;color:var(--obs-ink);text-shadow:0 0 18px rgba(224,87,79,.35);white-space:nowrap}
+.kl-a .kl-live + .kl-when .en{margin-left:0}
+.kl-a .kl-tbd{grid-area:date;margin-top:10px;font-size:22px;font-weight:300;letter-spacing:.14em;color:var(--ink-3);line-height:1.2;white-space:nowrap}
+.kl-a .k-off-s{grid-area:when;margin-top:2px;font-size:12px;line-height:1.45;color:var(--ink-3);letter-spacing:.04em;white-space:normal}
+.kl-a .k-n{grid-area:n;margin-top:7px;font-size:14px;font-weight:400;letter-spacing:.18em;color:var(--obs-mute);display:flex;align-items:center;gap:8px}
+.kl-a .k-n::before{content:"";flex:none;width:14px;height:1px;background:linear-gradient(90deg,rgba(226,203,154,.8),rgba(226,203,154,0))}
+.k.k-off .kl-tag{color:var(--ink-3)}
+.k.k-off.kl-a .k-n{color:var(--ink-2)}
+.k.k-off.kl-a .k-n::before{background:linear-gradient(90deg,rgba(0,0,0,.25),transparent)}
+
+/* 底部卡片 */
+.lvx{padding:22px 22px 20px;border-radius:26px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.lvx .lv-k{gap:9px;font-size:12.5px;letter-spacing:.18em;color:var(--ink-2)}
+.lvx .lv-k .sep{font-style:normal}
+.lvx .lv-k .ldot{margin:0 4px 0 3px}
+.lvx .ldot::after{box-shadow:0 0 0 1px rgba(184,151,90,.95)}
+.lvx .ldot.on::after{box-shadow:0 0 0 1.5px rgba(224,87,79,.95)}
+.lvx.on .lv-k{color:var(--onair)}
+.big-date{margin-top:12px;font-family:var(--geo);font-size:48px;font-weight:300;line-height:1;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.big-date .yr{color:var(--ink-3)}
+.big-live{margin-top:12px;font-size:40px;font-weight:400;line-height:1.1;letter-spacing:.16em;color:var(--ink);text-shadow:0 0 22px rgba(224,87,79,.22)}
+.lv-tbd{padding:14px 0 12px;font-size:17px;font-weight:400;line-height:1.5;letter-spacing:.12em;color:var(--ink-3)}
+.big-when{margin-top:10px;font-size:16px;font-weight:500;letter-spacing:.12em;color:var(--ink-2);white-space:nowrap}
+.big-when .en{font-weight:600;letter-spacing:.02em;margin:0 6px;color:var(--ink)}
+.big-when .sep{font-style:normal;margin:0 -.1em}
+.big-when::before,.big-when::after{content:"";display:inline-block;width:18px;height:1px;background:var(--champagne);vertical-align:5px;margin:0 10px;opacity:.8}
+.cdn-k{margin-top:16px;font-size:12px;letter-spacing:.2em;color:var(--ink-3);display:flex;align-items:center;gap:10px;width:100%}
+.cdn-k::before,.cdn-k::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--rule),transparent)}
+.cdn{margin-top:18px;width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.cdn div{border-radius:16px;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:var(--up);background:var(--clay-hi)}
+.cdn b{display:flex;font-family:var(--geo);font-size:26px;font-weight:400;line-height:1.1;color:var(--ink);font-variant-numeric:tabular-nums}
+.cdn span{font-size:11.5px;color:var(--ink-3);letter-spacing:.14em}
+.cdn div:last-child b{color:var(--champagne-ink)}
+.cdn .dg{position:relative;display:block;font-style:normal}
+.cdn .dv{display:block;font-style:normal}
+.cdn .dv.out{position:absolute;left:0;top:0;right:0;animation:dg-out 180ms var(--ease-out) forwards}
+.cdn .dv.in{animation:dg-in 180ms var(--ease-out) both}
+@keyframes dg-out{to{transform:translateY(-40%);opacity:0}}
+@keyframes dg-in{from{transform:translateY(40%);opacity:0}}
+#s-live .acts{display:flex;flex-direction:column;gap:12px}
+#s-live .cta .lbl{display:flex;align-items:center;min-width:0}
+#s-live .cta .lead{width:19px;height:19px;stroke-width:1.6;margin-right:10px;flex:none}
+#s-live .gl-ink .lead{color:var(--obs-gold)}
+#s-live .cta-sec{min-height:54px}
+
+/* 首頁載入：日期接在入口鍵之後 60ms 淡入；換場次時重播一次 */
+@media (prefers-reduced-motion:no-preference){
+  .kl-a .kl-date,.kl-a .kl-live,.kl-a .kl-tbd{animation:kl-date 240ms var(--ease-out) 560ms backwards}
+  .kl-a.kl-in .kl-date,.kl-a.kl-in .kl-live,.kl-a.kl-in .kl-tbd{animation:kl-date2 240ms var(--ease-out) backwards}
+}
+@keyframes kl-date{from{opacity:0;transform:translateY(6px)}}
+@keyframes kl-date2{from{opacity:0;transform:translateY(6px)}}
+@media (prefers-reduced-motion:reduce){
+  .ldot::after{animation:none;transform:scale(1.9);opacity:.5}
+  .ldot.on::after{transform:scale(2.1);opacity:.55}
+  .cdn .dv.out{display:none}
+  .cdn .dv.in{animation:none}
+}
+
+@media (min-width:768px){
+  .kl-tag{font-size:12.5px}
+  .kl-a .kl-date{margin-top:12px;font-size:54px}
+  .kl-a .kl-when{margin-top:8px;font-size:15px}
+  .kl-a .kl-live{margin-top:14px;font-size:36px}
+  .kl-a .kl-tbd{margin-top:14px;font-size:28px}
+  .kl-a .k-off-s{margin-top:6px;font-size:13.5px}
+  .kl-a .k-n{font-size:16px}
+  .big-date{font-size:54px}
+}
+@media (max-width:359px){
+  .kl-a .kl-date{font-size:32px}
+  .kl-a .kl-live{font-size:24px;letter-spacing:.1em}
+  .kl-a .kl-tbd{font-size:19px;letter-spacing:.1em}
+  .kl-tag{letter-spacing:.1em}
+  .big-date{font-size:40px}
+  .big-live{font-size:34px}
+  .big-when{font-size:14.5px}
+  .big-when::before,.big-when::after{width:12px;margin:0 6px}
+  .cdn{gap:6px}
+  .cdn b{font-size:22px}
+}

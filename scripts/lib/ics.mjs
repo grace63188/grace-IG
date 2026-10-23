@@ -1,6 +1,6 @@
 // 輕量 ICS（iCalendar）解析與重複事件展開
 // 支援：折行 unfolding、DTSTART/DTEND（TZID / UTC Z / 全天 VALUE=DATE / 浮動時間）、DURATION、
-//      RRULE 的 DAILY/WEEKLY（INTERVAL、COUNT、UNTIL、BYDAY、WKST）、EXDATE、
+//      RRULE 的 DAILY/WEEKLY（INTERVAL、COUNT、UNTIL、BYDAY、WKST）、MONTHLY（BYMONTHDAY、BYDAY 含序數）、EXDATE、
 //      RECURRENCE-ID 單次修改、STATUS:CANCELLED 排除。
 // 輸出規則：全天事件略過（警告）；http:// 連結升級為 https://（警告）。
 
@@ -155,6 +155,12 @@ export function parseRrule(v) {
     count: r.COUNT ? parseInt(r.COUNT, 10) : null,
     until: r.UNTIL || null,
     byday: r.BYDAY ? r.BYDAY.split(',').map((d) => d.replace(/^[+-]?\d+/, '')).filter((d) => WEEKDAYS.includes(d)) : null,
+    // MONTHLY 用：保留序數（如 4SA = 第四個週六、-1FR = 最後一個週五）
+    bydayN: r.BYDAY
+      ? r.BYDAY.split(',').map((d) => d.match(/^([+-]?\d+)?([A-Z]{2})$/)).filter((m) => m && WEEKDAYS.includes(m[2]))
+        .map((m) => ({ n: m[1] ? parseInt(m[1], 10) : 0, wd: WEEKDAYS.indexOf(m[2]) }))
+      : null,
+    bymonthday: r.BYMONTHDAY ? r.BYMONTHDAY.split(',').map((x) => parseInt(x, 10)).filter((x) => x && Math.abs(x) <= 31) : null,
     wkst: WEEKDAYS.includes(r.WKST) ? r.WKST : 'MO',
   };
 }
@@ -208,8 +214,35 @@ export function expandRrule(start, rule, { windowEnd, defaultTz, maxIter = 5000 
         if (!push(mk(ws + off * DAY_MS))) break outer;
       }
     }
+  } else if (rule.freq === 'MONTHLY') {
+    // 支援 BYMONTHDAY（含負數）與 BYDAY（含序數，如 4SA、-1FR；無序數則為當月每個該週日）
+    const daysInMonth = (y, m0) => new Date(Date.UTC(y, m0 + 1, 0)).getUTCDate();
+    outer: for (let k = 0; k < maxIter; k++) {
+      const mi = base.m - 1 + k * rule.interval;
+      const y = base.y + Math.floor(mi / 12);
+      const m0 = ((mi % 12) + 12) % 12;
+      const dim = daysInMonth(y, m0);
+      let ds = [];
+      if (rule.bymonthday && rule.bymonthday.length) {
+        ds = rule.bymonthday.map((d) => (d > 0 ? d : dim + 1 + d)).filter((d) => d >= 1 && d <= dim);
+      } else if (rule.bydayN && rule.bydayN.length) {
+        for (const { n, wd } of rule.bydayN) {
+          const all = [];
+          for (let d = 1; d <= dim; d++) if (new Date(Date.UTC(y, m0, d)).getUTCDay() === wd) all.push(d);
+          if (n === 0) ds.push(...all);
+          else { const pick = n > 0 ? all[n - 1] : all[all.length + n]; if (pick) ds.push(pick); }
+        }
+      } else if (base.d <= dim) {
+        ds = [base.d]; // 無 BY* 時沿用 DTSTART 的日期；該月沒有這一天則跳過（RFC 5545）
+      }
+      ds = [...new Set(ds)].sort((a, b) => a - b);
+      for (const d of ds) {
+        if (!push(mk(Date.UTC(y, m0, d)))) break outer;
+      }
+      if (k > 0 && mk(Date.UTC(y, m0, 1)) > windowEnd) break;
+    }
   } else {
-    // 其他頻率（MONTHLY/YEARLY 等）不展開，只保留第一次
+    // 其他頻率（YEARLY 等）不展開，只保留第一次
     return { occurrences: [start.ms], unsupported: rule.freq || 'UNKNOWN' };
   }
   return { occurrences: out, unsupported: null };
