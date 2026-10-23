@@ -6,13 +6,15 @@
        LINE 內建：「用瀏覽器開啟」（openExternalBrowser=1）單一按鈕；按下後約 1.5 秒頁面仍在前景 → 顯示選單說明
        說明顯示期間目前網址改為 ?go=login（見 auth.markLoginUrl），由 App 選單開到瀏覽器時略過開場、直接到登入卡；卡片收起時還原
    - 登入成功（Google 當下、LINE 授權返回）：收起儀式卡，直接進第一題，不再多一個「開始作答」畫面
+   - LINE 授權返回：資料中心換 token 要 3–10 秒，期間先以 hold(kind) 顯示「LINE 登入中」的儀式卡（鈕停用）；
+     訪客此時撕票只會重畫同一張登入中卡（不會回到可再按一次登入的卡），完成即收起、直接進所選測驗第 1 題
    - 已登入回訪：撕票後直接進第一題
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc, reduced } from './core.js?v=20261023c';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023c';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023c';
-import { track } from './track.js?v=20261023c';
-import { OA_URL } from './quiz.js?v=20261023c';
+import { $, $$, esc, reduced } from './core.js?v=20261023d';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261023d';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261023d';
+import { track } from './track.js?v=20261023d';
+import { OA_URL } from './quiz.js?v=20261023d';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最接近平常的那一項就好';
@@ -87,6 +89,15 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
         <p class="auth-msg" id="auth-msg" role="status" aria-live="polite"${msg ? '' : ' hidden'}>${esc(msg)}</p>
       </div>`;
   }
+  /** LINE 授權返回、等待資料中心期間：同一張登入卡，LINE 鈕呈連線中、兩鈕停用 */
+  const PENDING_MSG = 'LINE 登入中，馬上為你開始測驗…';
+  function pendingHtml() {
+    return authHtml(PENDING_MSG)
+      .replace('data-provider="line"', 'data-provider="line" disabled aria-busy="true"').replace('cta-line"', 'cta-line pending"')
+      .replace('<span class="lbl">LINE 登入</span>', '<span class="lbl">連線中…</span>')
+      .replace('data-provider="google"', 'data-provider="google" disabled')
+      .replace('class="auth-msg"', 'class="auth-msg is-wait"');
+  }
   /* App 內建瀏覽器卡片顯示期間：網址帶 go=login（選單開到瀏覽器時直接到登入卡）、右上角箭頭；卡片收起時還原 */
   const layer = $('#layer');
   const point = document.createElement('div');
@@ -101,10 +112,16 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
   }
   new MutationObserver(() => inappOn(!sheet.hidden && sheet.dataset.state === 'inapp')).observe(sheet, { attributes: true, attributeFilter: ['hidden', 'data-state'] });
   let webviewSent = false;
+  let pending = null;                        /* LINE 返回等待資料中心：{ kind } */
   function render(msg) {
     const k = KINDS[kind];
     $('#rite-kind').textContent = k.title;
     $('#rite-meta').innerHTML = `<span class="en">${k.n}</span> 題・約 <span class="en">${k.min}</span> 分鐘`;
+    if (pending) {
+      sheet.dataset.state = 'pending';
+      body.innerHTML = `${head()}<i class="perf-line" aria-hidden="true"></i><div class="rite-slot" id="rite-slot">${pendingHtml()}${notice()}</div>`;
+      return;
+    }
     if (isInApp()) {
       if (restoreUrl) { restoreUrl(); restoreUrl = null; }               /* 換測驗種類時重新標記網址 */
       sheet.dataset.state = 'inapp';
@@ -120,16 +137,35 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
 
   /** 已登入（含剛登入、LINE 返回）：收起儀式卡，直接進第一題 */
   function go(k, { fresh = false } = {}) {
-    kind = KINDS[k] ? k : kind;
+    /* 登入中期間訪客改撕另一張票：以最後選的種類為準 */
+    kind = pending ? pending.kind : KINDS[k] ? k : kind;
+    pending = null;
     busy = false;
     track('rite.start', 'click', { kind, auto: true, fresh });
     closeSheet(true);
     startQuiz(kind);
   }
 
-  /** 撕票後呼叫：已登入直接進第一題；未登入換成儀式卡（登入） */
+  /** LINE 授權返回、等待資料中心換 token：立刻顯示「登入中」的儀式卡（所選種類來自 gh.state），完成由 go() 收起 */
+  function hold(k) {
+    pending = { kind: KINDS[k] ? k : 'ability' };
+    kind = pending.kind;
+    busy = true;
+    render();
+    openSheet('rite', $('[data-open="quiz"].k'), { ritual: true });
+    track('rite.pending', 'view', { kind, provider: 'line' });
+  }
+
+  /** 撕票後呼叫：已登入直接進第一題；未登入換成儀式卡（登入）；登入中則維持登入中卡（換成這張票的種類） */
   function open(k, { msg } = {}) {
     kind = KINDS[k] ? k : 'ability';
+    if (pending && !msg) {
+      pending.kind = kind;
+      render();
+      openSheet('rite', $('[data-open="quiz"].k'), { ritual: true });
+      return;
+    }
+    pending = null;
     busy = false;
     if (session() && !msg) { go(kind); return; }
     render(msg);
@@ -267,5 +303,5 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
   onMute(paintSnd);
   paintSnd(isMuted());
 
-  return { open, go, render, paintWho };
+  return { open, go, hold, render, paintWho, pending: () => (pending ? pending.kind : '') };
 }

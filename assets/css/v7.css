@@ -144,6 +144,7 @@
 .pill-s:active{transform:scale(.96);box-shadow:var(--matte-sink)}
 .pill-s svg{width:14px;height:14px;stroke-width:1.8}
 .auth-msg{font-size:13px;font-weight:500;color:var(--err-ink);letter-spacing:.02em;text-align:center}
+.auth-msg.is-wait{color:var(--ink-2)}                         /* LINE 返回等待資料中心：狀態說明，不是錯誤 */
 .priv{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;color:var(--ink-3);letter-spacing:.03em;padding-top:2px;text-align:center}
 .priv svg{width:12px;height:12px;stroke-width:1.8}
 /* 登入告知：取得哪些資料與用途＋隱私權政策（多行，左對齊）；連結以行內 padding 擴大點擊範圍、不影響行高 */

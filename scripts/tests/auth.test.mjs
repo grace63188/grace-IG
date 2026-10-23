@@ -18,7 +18,7 @@ globalThis.fetch = async () => { throw new Error('offline'); };                 
 /* 與網頁相同的版本參數匯入（模組網址不同會變成兩份模組，設定狀態不共用） */
 const V = HTML.match(/assets\/js\/v6\.js(\?v=\w+)/)[1];
 const { loadConfig, isDemo } = await import(`../../assets/js/config.js${V}`);
-const { resume, loginUrl, takeGoLogin, markLoginUrl, externalUrl } = await import(`../../assets/js/auth.js${V}`);
+const { resume, loginUrl, takeGoLogin, markLoginUrl, externalUrl, pendingLine } = await import(`../../assets/js/auth.js${V}`);
 const embedded = HTML.match(/id="hub-config">([\s\S]*?)<\/script>/)[1];
 
 test('hub.json 讀取失敗：內嵌設定仍為正式模式', async () => {
@@ -46,6 +46,26 @@ test('正式模式下 LINE 返回但 state 遺失（換了瀏覽器）：回 err
   const r = await resume();
   assert.deepEqual(r, { kind: 'ability', provider: 'line', error: 'state' });
   assert.equal(url.search, '?x=1');
+});
+
+test('pendingLine：LINE 返回時同步讀出所選種類且不清除 state；示範模式或非返回回 null', async () => {
+  embeddedText = embedded;
+  await loadConfig();
+  store.set('gh.state', JSON.stringify({ s: 'S1', kind: 'career', at: Date.now() }));
+  url = new URL('https://grace63188.github.io/grace-IG/?auth=line&code=C1&state=S1');
+  assert.deepEqual(pendingLine(), { kind: 'career' });
+  assert.ok(store.has('gh.state'), 'pendingLine 不清除 state');
+  assert.equal(url.search, '?auth=line&code=C1&state=S1', 'pendingLine 不動網址');
+  store.delete('gh.state');
+  assert.deepEqual(pendingLine(), { kind: 'ability' }, 'state 遺失仍先顯示登入中（之後由 resume 回 error）');
+  url = new URL('https://grace63188.github.io/grace-IG/?go=login&k=career');
+  assert.equal(pendingLine(), null);
+  embeddedText = '{}';
+  await loadConfig();
+  url = new URL('https://grace63188.github.io/grace-IG/?auth=line&code=C1&state=S1');
+  assert.equal(pendingLine(), null, '示範模式不顯示登入中');
+  embeddedText = embedded;
+  await loadConfig();
 });
 
 test('正式模式下 state 逾時：同樣回 error state', async () => {

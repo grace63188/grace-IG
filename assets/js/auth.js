@@ -7,10 +7,12 @@
    - App 內建瀏覽器（Instagram、Threads、Facebook、LINE 等 WebView）：不在此登入，先換到真正的瀏覽器。
      外部開啟（帶 ?go=login，重新開啟時直接到登入卡）：LINE 內建 openExternalBrowser=1、Android intent:// 交給 Chrome，
      iOS 只能靠 App 右上角選單（x-safari-https:// 實機不一定被放行，已移除）；顯示說明時以 markLoginUrl 把目前網址改成登入網址，選單開啟的網址即直接到登入卡
-   - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state' */
-import { config } from './config.js?v=20261023c';
-import { post } from './api.js?v=20261023c';
-import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023c';
+   - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state'
+   - LINE 返回的換 token（auth.line）實測要 3–10 秒（Apps Script 冷啟動）：pendingLine() 先同步讀出所選測驗種類，
+     讓 gate 立刻顯示「登入中」的儀式卡，不讓訪客對著首頁等；auth.line／auth.google 逾時放寬到 25 秒 */
+import { config } from './config.js?v=20261023d';
+import { post } from './api.js?v=20261023d';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261023d';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';
@@ -18,6 +20,7 @@ const STATE_KEY = 'gh.state';
 const PENDING_KEY = 'gh.pending';
 const DEMO_NAME = '示範學員';
 const YEAR = 365 * 86400e3;
+const AUTH_TIMEOUT = 25000;                 /* auth.line／auth.google：資料中心含 LINE／Google 驗證，冷啟動可能逾 12 秒 */
 
 const mem = {};
 const ls = {
@@ -185,16 +188,28 @@ export async function login(provider, { kind = '', fallback } = {}) {
     return new Promise(() => {});
   }
   const credential = await googleCredential(fallback);
-  const d = await post('auth.google', Object.assign({ credential, ip: sessionIp() }, extra()));
+  const d = await post('auth.google', Object.assign({ credential, ip: sessionIp() }, extra()), { timeout: AUTH_TIMEOUT });
   return save(d, 'google');
 }
 
+/** 網址是否為 LINE 授權返回（?auth=line 帶 code／error／state） */
+function lineReturn() {
+  let q;
+  try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  return q.get('auth') === 'line' && (q.get('code') || q.get('error') || q.get('state')) ? q : null;
+}
+/** 同步版：LINE 授權返回且為正式模式 → { kind }（來自 gh.state，不清除）；其他 null。供 gate 在 resume() 等待資料中心期間先顯示「登入中」 */
+export function pendingLine() {
+  if (config().demo || !lineReturn()) return null;
+  let pend = null;
+  try { pend = JSON.parse(ls.get(STATE_KEY) || 'null'); } catch (e) { pend = null; }
+  return { kind: pend && pend.kind === 'career' ? 'career' : 'ability' };
+}
 /** 載入時呼叫：LINE 授權返回 → { kind, provider, session } ／ { kind, provider, error }；有 vt → visitor.me 續期；其他回 null */
 export async function resume() {
   const cfg = config();
-  let q;
-  try { q = new URLSearchParams(location.search); } catch (e) { return null; }
-  if (q.get('auth') === 'line' && (q.get('code') || q.get('error') || q.get('state'))) {
+  const q = lineReturn();
+  if (q) {
     /* 設定尚未確認為正式模式：不動 state 與網址，留待正式設定載入後處理 */
     if (cfg.demo) return null;
     const code = q.get('code'), state = q.get('state'), e = q.get('error');
@@ -210,7 +225,7 @@ export async function resume() {
     if (!pend || pend.s !== state || Date.now() - pend.at > 20 * 60e3) return { kind, provider: 'line', error: 'state' };
     if (e || !code) return { kind, provider: 'line', error: e === 'access_denied' ? 'denied' : 'PROVIDER' };
     try {
-      const d = await post('auth.line', Object.assign({ code, redirectUri: cfg.redirectUri, ip: sessionIp() }, extra()));
+      const d = await post('auth.line', Object.assign({ code, redirectUri: cfg.redirectUri, ip: sessionIp() }, extra()), { timeout: AUTH_TIMEOUT });
       return { kind, provider: 'line', session: save(d, 'line') };
     } catch (x) { return { kind, provider: 'line', error: x.code || 'SERVER' }; }
   }

@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023c';
-import { initQuiz } from './quiz.js?v=20261023c';
-import { initTickets } from './ticket.js?v=20261023c';
-import { loadConfig } from './config.js?v=20261023c';
-import { initSound, sfx } from './sound.js?v=20261023c';
-import { initTracking, track } from './track.js?v=20261023c';
-import { resume as resumeAuth, takeGoLogin } from './auth.js?v=20261023c';
-import { initGate, errText } from './gate.js?v=20261023c';
-import { initIntro } from './intro.js?v=20261023c';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261023d';
+import { initQuiz } from './quiz.js?v=20261023d';
+import { initTickets } from './ticket.js?v=20261023d';
+import { loadConfig } from './config.js?v=20261023d';
+import { initSound, sfx } from './sound.js?v=20261023d';
+import { initTracking, track } from './track.js?v=20261023d';
+import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261023d';
+import { initGate, errText } from './gate.js?v=20261023d';
+import { initIntro } from './intro.js?v=20261023d';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -323,12 +323,16 @@ async function start() {
     initTracking();
     let ref = ''; try { ref = document.referrer ? new URL(document.referrer).host : ''; } catch (e) { /* 忽略 */ }
     track('page.enter', 'view', { ref });
-    /* 從 LINE 授權頁返回：成功直接進第一題；失敗回到儀式卡並顯示原因 */
+    /* 從 LINE 授權頁返回：資料中心換 token 要數秒，先顯示「登入中」的儀式卡（所選種類），成功直接進第一題；失敗回到儀式卡並顯示原因
+       從 App 內建瀏覽器換到瀏覽器（?go=login）：不等 visitor.me 續期，立刻到登入卡（已登入者直接進第一題） */
+    const pl = pendingLine();
+    if (pl) gate.hold(pl.kind);
+    else if (go) gate.open(go.kind);
     const r = await resumeAuth();
     if (r && r.kind) {
       if (r.session) { track('auth.success', 'auth', { provider: r.provider, kind: r.kind }); gate.go(r.kind, { fresh: true }); }
       else { track('auth.fail', 'auth', { provider: r.provider || 'line', kind: r.kind, code: r.error }); gate.open(r.kind, { msg: errText(r.error) }); }
-    } else if (go) gate.open(go.kind);                                  /* 從 App 內建瀏覽器換到瀏覽器：直接到登入卡 */
+    }
   });
   paintConsult(FB.consult);
   initTimed({ campaigns: FB.campaigns, live: FB.live });
