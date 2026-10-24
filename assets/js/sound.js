@@ -259,11 +259,17 @@ const FX = {
     noise(t, { dur: 0.4, peak: 0.32, a: 0.05, type: 'bandpass', f: 1500, f2: 2400, q: 0.7, buf: tearBuffer(), wet: 0.04 });
     noise(t, { dur: 0.36, peak: 0.08, a: 0.04, type: 'lowpass', f: 600, q: 0.4 });
   },
-  /* 蓋章：印章落下 0.12s 悶響 */
-  stamp(t) {
-    tone(t, { f: 118, f2: 72, peak: 0.6, a: 0.003, d: 0.11, wet: 0.08 });
-    tone(t, { f: 236, f2: 150, peak: 0.07, a: 0.003, d: 0.05, wet: 0 });
-    noise(t, { dur: 0.06, peak: 0.12, a: 0.002, type: 'lowpass', f: 420, q: 0.5 });
+  /* 蓋章：印章落下 0.12s 悶響；gain＝音量倍數（準備頁換票重新驗票用 0.4≈−8dB） */
+  stamp(t, o, { gain = 1 } = {}) {
+    tone(t, { f: 118, f2: 72, peak: 0.6 * gain, a: 0.003, d: 0.11, wet: 0.08 });
+    tone(t, { f: 236, f2: 150, peak: 0.07 * gain, a: 0.003, d: 0.05, wet: 0 });
+    noise(t, { dur: 0.06, peak: 0.12 * gain, a: 0.002, type: 'lowpass', f: 420, q: 0.5 });
+  },
+  /* 換票：紙張滑過桌面 0.26s・帶通噪音 2.2kHz→0.9kHz 下滑＋低通 500Hz 氣流；聲像跟著票券移動方向（dir＝1 往右格：右→左） */
+  swish(t, o, { dir = 1 } = {}) {
+    const pn = panner(t, 0.26, 0.15 * dir, -0.15 * dir, mainBus());
+    noise(t, { dur: 0.26, peak: 0.12, a: 0.03, type: 'bandpass', f: 2200, f2: 900, q: 0.8, wet: 0.04, out: pn });
+    noise(t, { dur: 0.24, peak: 0.04, a: 0.03, type: 'lowpass', f: 500, q: 0.5, wet: 0, out: pn });
   },
   /* 儀式卡出現：水晶輕敲・2.1kHz 單音；尾音交給共用殘響，本體縮短、音量降低（2–5kHz 是最易刺耳的頻段） */
   crystal(t) {
@@ -482,7 +488,7 @@ const FX = {
 };
 
 /* 震動樣式（Android；iOS 無 API 略過） */
-const BUZZ = { rvTick: 6, rvLock: [10, 40, 10], rvChime: [20, 60, 20, 60, 40], cdTick: 6, cdResolve: [10, 40, 10], key: 8, tear: [12, 330, 18], login: [10, 40, 10], pick: 6, reveal: [20, 60, 20, 60, 40], introEnter: 10, introCharge: 6, introImpact: 22 };
+const BUZZ = { swish: 6, rvTick: 6, rvLock: [10, 40, 10], rvChime: [20, 60, 20, 60, 40], cdTick: 6, cdResolve: [10, 40, 10], key: 8, tear: [12, 330, 18], login: [10, 40, 10], pick: 6, reveal: [20, 60, 20, 60, 40], introEnter: 10, introCharge: 6, introImpact: 22 };
 export const buzzOf = (name) => BUZZ[name];
 export function vibrate(p) { try { if (p && navigator.vibrate) navigator.vibrate(p); } catch (e) { /* 不支援 */ } }
 

@@ -353,8 +353,7 @@
 .is-press .socket .start::before{transform:scaleY(.55);opacity:.5}
 .is-press .socket::after{box-shadow:inset 0 0 0 1.5px rgba(226,203,154,.95),0 0 0 6px rgba(226,203,154,.16)}
 .socket.handoff{visibility:hidden}
-.qr-switch{margin-top:18px}
-.is-press .qr-switch,.is-press .start{pointer-events:none}
+.is-press .start{pointer-events:none}
 
 /* 倒數層：整層是一顆「略過」按鈕；霧面底沿用開場的放射霧面 */
 .qcd{position:fixed;inset:0;z-index:10}
@@ -563,3 +562,141 @@
 }
 @media (prefers-reduced-motion:reduce){ .nx-l:active{transform:none} }
 @media (forced-colors:active){ .nx,.nx-pick,.nx-row,.nx-l,.nx-bridge{border:1px solid CanvasText} }
+
+/* =========================================================
+   測驗切換（準備頁兩段式選擇）＋測驗徽記與章色（準備頁入場券、首頁票券）；規格 mockup_v15/switch/
+   章色只用在徽記、章圈、滑塊短線、狀態圓點；文字一律墨色（銅色對比 3.9，只做非文字）
+   動作只走 transform／opacity／filter（Web Animations 由 quiz.js 排程）；減少動態改為交叉淡換
+   ========================================================= */
+[data-k="ability"],.tk-wrap[data-kind="ability"]{--acc:#45526B;--acc-soft:rgba(69,82,107,.14);--acc-ring:rgba(69,82,107,.55)}
+[data-k="career"],.tk-wrap[data-kind="career"]{--acc:#A85B3C;--acc-soft:rgba(168,91,60,.14);--acc-ring:rgba(168,91,60,.55)}
+/* 徽記：刻進霧面的線條（下緣 1px 白色高光） */
+.mk svg{display:block;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 .8px 0 rgba(255,255,255,.95))}
+.mk .fill{fill:var(--acc-soft)}
+
+/* ---------- 兩段式選擇：霧面凹槽＋浮起的滑塊 ---------- */
+.qs{position:relative;display:grid;grid-template-columns:1fr 1fr;flex:none;width:100%;max-width:440px;height:58px;padding:5px;margin-bottom:30px;border-radius:999px;background:var(--clay);box-shadow:var(--dn-sm);border:1px solid transparent}
+.qs-thumb{position:absolute;top:5px;bottom:5px;left:5px;width:calc(50% - 5px);border-radius:999px;background:var(--matte);background-color:#EAEAE8;pointer-events:none;
+  box-shadow:3px 4px 8px rgba(150,150,146,.5),-3px -3px 7px rgba(255,255,255,.9),inset 0 -2px 3px rgba(0,0,0,.05);
+  transform:translateX(calc(var(--tp,0) * 100%));transition:transform 240ms var(--ease-move)}
+.qs[data-on="career"] .qs-thumb{--tp:1}
+/* 滑塊下緣一道章色短線：選中格同時有「浮起」與「顏色」兩個線索 */
+.qs-thumb::after{content:"";position:absolute;left:50%;bottom:6px;width:22px;height:2.5px;margin-left:-11px;border-radius:2px;background:var(--acc);opacity:.9;transition:background-color 150ms ease-out}
+.qs-opt{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:46px;padding:0 10px;border:0;border-radius:999px;background:none;cursor:pointer;
+  font:inherit;font-size:15.5px;font-weight:400;letter-spacing:.12em;color:var(--ink-3);white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  transition-property:color,transform;transition-duration:150ms;transition-timing-function:ease-out}
+.qs-opt .mk svg{width:21px;height:21px;flex:none;stroke-width:1.6}
+.qs-opt .mk{color:var(--ink-3);transition:color 150ms ease-out}
+.qs-opt[aria-checked="true"]{color:var(--ink);font-weight:500}
+.qs-opt[aria-checked="true"] .mk{color:var(--acc)}
+.qs-opt:focus-visible{outline:2px solid var(--ink-2);outline-offset:-3px}
+.qs-opt:active{transform:scale(.96)}
+.is-press .qs{pointer-events:none}
+
+/* ---------- 入場券：徽記＋名稱＋說明，章色依測驗 ---------- */
+.pass-slot{display:grid;width:100%;max-width:440px}
+.pass-slot>.pass{grid-area:1/1;min-width:0}
+.pass .pass-body{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:16px;padding-left:20px}
+.pass-mark{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;box-shadow:var(--dn-sm);color:var(--acc)}
+.pass-mark svg{width:28px;height:28px}
+.pass-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pass .pass-name{margin-top:4px;font-size:32px;letter-spacing:.14em}
+.pass-sub{margin-top:6px;font-size:14.5px;font-weight:400;letter-spacing:.06em;line-height:1.5;color:var(--ink-2);word-break:keep-all}
+.pass .tk-stamp{color:var(--acc);box-shadow:inset 0 0 0 2px var(--acc-ring),inset 0 0 0 6px var(--acc-soft)}
+.pass-out{pointer-events:none}
+
+/* ---------- 狀態列：原「換測驗」連結的位置與高度（44px），不推擠版面 ---------- */
+.qs-status{min-height:44px;margin:18px 0 0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13.5px;letter-spacing:.08em;color:var(--ink-3);opacity:0}
+.qs-status i{width:7px;height:7px;border-radius:50%;background:var(--acc)}
+.qs-status b{font-weight:500;color:var(--ink-2)}
+
+/* ---------- 首頁票券：同一組徽記與章色（撕票前後識別一致） ---------- */
+.tk-body.has-mk{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:14px;padding-left:18px}
+.tk-mark{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;box-shadow:var(--dn-sm);color:var(--acc)}
+.tk-mark svg{width:26px;height:26px}
+.tk-txt{display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-width:0}
+.tk-wrap[data-kind] .tk-stamp{color:var(--acc);box-shadow:inset 0 0 0 2px var(--acc-ring),inset 0 0 0 6px var(--acc-soft)}
+/* 窄螢幕：入場券與票券縮小徽記與章，名稱維持一行；票券的章改落在徽記上（徽記同時淡出），不壓到名稱 */
+@media (max-width:379.98px){
+  .pass .pass-body{column-gap:12px;padding-left:16px;padding-right:68px}
+  .pass-mark{width:44px;height:44px}
+  .pass-mark svg{width:24px;height:24px}
+  .pass .pass-name{font-size:28px;letter-spacing:.12em}
+  .pass .tk-stamp{width:48px;height:48px;margin-top:-24px;right:14px}
+  .pass .tk-stamp svg{width:21px;height:21px}
+  .tk-body.has-mk{column-gap:10px;padding-left:14px}
+  .tk-mark{width:38px;height:38px}
+  .tk-mark svg{width:21px;height:21px}
+  .tk-wrap[data-kind] .tk-stamp{right:auto;left:9px;width:48px;height:48px;margin-top:-24px}
+  .tk-wrap.is-tearing .tk-mark{opacity:0;transition:opacity 120ms ease-out 360ms}
+}
+@media (min-width:380px) and (max-width:413.98px){
+  .tk-mark{width:44px;height:44px}
+  .tk-mark svg{width:24px;height:24px}
+  .tk-wrap[data-kind] .tk-stamp{width:44px;height:44px;margin-top:-22px;right:12px}
+  .tk-wrap[data-kind] .tk-stamp svg{width:20px;height:20px}
+}
+
+@media (min-width:768px){
+  .qs,.pass-slot{max-width:520px}
+  .qs{height:62px;margin-bottom:34px}
+  .qs-opt{font-size:16.5px}
+  .pass .pass-body{padding-left:28px;column-gap:22px}
+  .pass-mark{width:64px;height:64px}
+  .pass-mark svg{width:34px;height:34px}
+  .pass .pass-name{font-size:42px;letter-spacing:.16em}
+  .pass-sub{font-size:16px}
+  .tk-mark{width:56px;height:56px}
+  .tk-mark svg{width:30px;height:30px}
+  #s-quiz .tk-body.has-mk,.tk-body.has-mk{column-gap:18px;padding-left:24px}
+}
+@media (prefers-reduced-motion:reduce){
+  .qs-thumb{transition:none}
+  .qs-opt{transition-property:color}
+  .qs-opt:active{transform:none}
+}
+@media (forced-colors:active){
+  .qs{border-color:CanvasText}
+  .qs-opt[aria-checked="true"]{outline:2px solid Highlight;outline-offset:-4px}
+}
+
+/* =========================================================
+   小螢幕（矮、窄）：每一題一個畫面放得下（題目、所有選項、上一題／下一題），不需捲動
+   只在 寬 <768 且 高 ≤740 時收緊；390×844、平板與桌機維持原樣
+   下限：題目 16px、選項 14px、觸控高度 ≥44px；安全區域已由 .quiz 的 padding 處理
+   ========================================================= */
+@media (max-width:767.98px) and (max-height:740px){
+  .qz-shell{padding-top:6px;padding-bottom:10px}
+  .qz-top{gap:4px 10px;padding:0 0 8px}
+  .qz-close,.qz-top .snd{width:44px;height:44px}
+  .qz-bar{height:6px}
+  .qpage{padding-top:2px}
+  .q-ask{gap:10px;padding-bottom:0}
+  .q-text{font-size:clamp(17px,4.9vw,19px);line-height:1.45;margin-top:-4px}
+  .opts{gap:8px}
+  .opt{min-height:54px;padding:7px 14px 7px 12px;gap:12px;font-size:14.5px;line-height:1.42;border-radius:20px}
+  .opt .pearl{width:20px;height:20px}
+  .opts.two .opt{min-height:68px;font-size:15.5px}
+  .q-nav{margin-top:2px;gap:10px}
+  .nav{min-height:46px}
+  /* 準備頁：同樣收緊，「開始」不需捲動就看得到 */
+  .q-ready{padding:0 0 8px;min-height:calc(100svh - 120px)}
+  .qs{height:52px;margin-bottom:18px}
+  .qs-opt{min-height:44px}
+  .pass .pass-name{font-size:28px}
+  .qr-note{margin-top:18px;font-size:16px;line-height:1.6}
+  .socket{margin-top:18px;width:146px;height:146px}
+  .socket .start{width:116px;height:116px;font-size:18px}
+  .qs-status{margin-top:8px}
+}
+@media (max-width:767.98px) and (max-height:600px){
+  .q-text{font-size:17.5px}
+  .opt{min-height:52px}
+  .opts.two .opt{min-height:64px}
+  .qs{height:50px;margin-bottom:12px}
+  .pass .pass-name{font-size:26px}
+  .qr-note{margin-top:12px;font-size:16px;line-height:1.5}
+  .socket{margin-top:12px;width:132px;height:132px}
+  .socket .start{width:106px;height:106px;font-size:17px}
+  .qs-status{min-height:36px;margin-top:4px}
+}

@@ -4,6 +4,8 @@
    - 結果：雷達圖／六角形生長、名稱逐字浮現；結果卡以 canvas 繪製（IG 限動 9:16）
    - 結果存 localStorage（try/catch），票券入口顯示上次結果
    - 入口：撕票 →（未登入先在儀式卡登入，gate.js）→ 開始前準備頁（入場券＋作答提醒＋「開始」）→ 3-2-1 倒數 → 第一題（未完成者接續，按鈕為「繼續」）
+   - 準備頁測驗切換：最上方兩段式選擇（能力健檢｜職涯定位，role=radiogroup、方向鍵切換）；按下即更新、換票過場 460ms 可中途接續，
+     狀態列「已換成 ○○」（role=status 公告一次）；徽記與章色見 marks.js；事件 quiz.switch（v＝切換後）；規格見 mockup_v15/switch/motion.md
    - 倒數：開始鈕化成錶面、金弧掃描、收束鐘聲，總長 3160ms；點畫面／Enter／空白鍵略過，Esc 關閉；減少動態改為「準備好了」0.6s 淡入淡出
      畫面（Web Animations＋rAF）與聲音（sound.js cd*）都以按下那一刻為基準一次排程，聲音取同一個音訊時鐘讀數，不逐一漂移
    - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
@@ -13,15 +15,16 @@
      能力健檢＝七軸金線長成雷達、落定後以 FLIP 平移成結果頁的雷達；職涯定位＝六枚角色印記繞錶圈轉動、收攏、金印落定、結果頁分段浮上
      點畫面／Enter／空白鍵略過（前 220ms 不受理）；Esc 照常關閉測驗；減少動態改為「結果出爐」0.6s 淡入淡出；規格見 mockup_v13/reveal/motion.md
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝rv* 子音軌（同一個音訊時鐘讀數一次排程）；事件：每題作答進度、完成與結果、quiz.reveal／quiz.reveal_skip（view） */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261024d';
-import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261024d';
-import { track } from './track.js?v=20261024d';
-import { submitResult, onResults, session } from './auth.js?v=20261024d';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261024e';
+import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261024e';
+import { track } from './track.js?v=20261024e';
+import { submitResult, onResults, session } from './auth.js?v=20261024e';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261024d';
-import { NX, OA_URL, bridge, shareUrl } from './nextstep.js?v=20261024d';
+} from './quizdata.js?v=20261024e';
+import { NX, OA_URL, bridge, shareUrl } from './nextstep.js?v=20261024e';
+import { mark, SUB } from './marks.js?v=20261024e';
 
 export { OA_URL };
 export const STORE_KEY = 'grace.quiz.v1';
@@ -30,6 +33,14 @@ const NOTE = '本結果為自我探索參考，非正式心理測驗。';
 /* 下一步各去向：sheet＝首頁卡片、tab＝前往上課的分頁 */
 export const NEXT_DEST = { enroll: ['study', 'academy'], consult: ['consult', ''], browse: ['follow', ''], try: ['study', 'sampler'] };
 export const RITE_LINE = '接下來所有作答都沒有標準答案，請誠實作答！';
+/** 準備頁測驗切換：回傳切換後的測驗與方向（1＝往右格、−1＝往左格）；同一個或不明測驗回傳 null（不切換） */
+export function switchPlan(cur, to) {
+  if (to !== 'ability' && to !== 'career') return null;
+  if (to === cur) return null;
+  return { kind: to, from: cur, dir: to === 'career' ? 1 : -1 };
+}
+/* 換票過場時間軸（ms，按下＝0）；規格見 mockup_v15/switch/motion.md */
+export const SW_TL = { outDur: 160, inAt: 120, inDur: 280, stampAt: 320, stampDur: 140, stIn: 460, stInDur: 150, stOut: 2060, stEnd: 2260, rapid: 250, rmDur: 160 };
 
 /* 倒數時間軸（ms，按下「開始」＝0）；規格見 mockup_v12/ready/motion.md */
 export const CD_TL = {
@@ -281,19 +292,25 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
     return el;
   }
 
-  /* 開始前準備頁：撕下票根後的入場券（驗票章已蓋上）、作答提醒、「開始」、換另一個測驗 */
-  function readyHtml() {
-    const q = QUIZ[kind], s = S(), other = kind === 'ability' ? 'career' : 'ability';
-    const resume = !!(s && s.answers.some((a) => a != null));
-    return `<div class="q-ready">
-      <div class="pass">
-        <div class="pass-body"><span class="tk-issuer en">G.R.A.C.E</span><h3 class="pass-name" id="qz-name">${esc(q.title)}</h3></div>
+  /* 開始前準備頁：測驗切換（兩段式選擇）、撕下票根後的入場券（徽記＋說明，驗票章已蓋上）、作答提醒、「開始」、狀態列 */
+  function passHtml(k) {
+    return `<div class="pass" data-k="${k}">
+        <div class="pass-body"><span class="pass-mark mk" aria-hidden="true">${mark(k, true)}</span><span class="pass-txt"><span class="tk-issuer en">G.R.A.C.E</span><h3 class="pass-name" id="qz-name">${esc(QUIZ[k].title)}</h3><span class="pass-sub">${esc(SUB[k])}</span></span></div>
         <span class="pass-tear" aria-hidden="true"></span>
         <span class="tk-stamp" aria-hidden="true"><svg class="i" focusable="false"><use href="#i-check"/></svg></span>
-      </div>
+      </div>`;
+  }
+  const statusHtml = (k) => `<i aria-hidden="true"></i>已換成 <b>${esc(QUIZ[k].title)}</b>`;
+  function readyHtml() {
+    const s = S();
+    const resume = !!(s && s.answers.some((a) => a != null));
+    const opt = (k) => `<button class="qs-opt" type="button" role="radio" data-k="${k}" aria-checked="${k === kind}" tabindex="${k === kind ? 0 : -1}"><span class="mk" aria-hidden="true">${mark(k)}</span><span>${esc(QUIZ[k].title)}</span></button>`;
+    return `<div class="q-ready" data-k="${kind}">
+      <div class="qs" role="radiogroup" aria-label="選擇測驗" data-on="${kind}"><span class="qs-thumb" aria-hidden="true"></span>${opt('ability')}${opt('career')}</div>
+      <div class="pass-slot">${passHtml(kind)}</div>
       <p class="qr-note" id="qz-note">${esc(RITE_LINE)}</p>
       <div class="socket"><button class="start obs" type="button" data-act="start" aria-describedby="qz-note" data-ev="quiz.start" data-ev-meta='{"kind":"${kind}"}'><span>${resume ? '繼續' : '開始'}</span></button></div>
-      <button class="txt-link qr-switch" type="button" data-act="other" data-ev="quiz.other" data-ev-meta='{"kind":"${other}"}'>換另一個測驗</button>
+      <p class="qs-status" role="status" aria-live="polite"></p>
     </div>`;
   }
 
@@ -406,7 +423,7 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
   }
 
   /* ---------- 流程 ---------- */
-  /** 開始前準備頁（登入完成、已登入撕票、重新測驗、換另一個測驗）；via 記錄從哪裡進來 */
+  /** 開始前準備頁（登入完成、已登入撕票、重新測驗）；via 記錄從哪裡進來 */
   function showReady(dir = 1, via = '') {
     cdCancel(); rvCancel();
     clearTimeout(advT);
@@ -451,6 +468,7 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
     if (!S()) state[kind] = { answers: new Array(QUIZ[kind].qs.length).fill(null) };
     const first = firstOpen();
     const ready = btn.closest('.q-ready');
+    swFinish(ready);                                      /* 換票過場中按「開始」：新票直接到位，以新測驗進倒數 */
     const rm = !motionOK() || typeof btn.animate !== 'function';
     const a0 = clock();                                   /* 唯一一次音訊時鐘讀數：之後所有聲音＝a0＋毫秒 */
     const c = cd = { t0: performance.now(), rm, first, anims: [], timers: [], raf: 0, q1: false, done: false, el: null, hit: null };
@@ -491,7 +509,7 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
     }
 
     /* 0–150 按下（CSS .is-press）；150–300 準備頁其他內容退場 */
-    $$('.pass, .qr-note, .qr-switch', ready).forEach((x) => anim(c, x,
+    $$('.qs, .pass, .qr-note, .qs-status', ready).forEach((x) => anim(c, x,
       [{ opacity: 1, filter: 'blur(0px)', transform: 'translateY(0px)' }, { opacity: 0, filter: 'blur(4px)', transform: 'translateY(-12px)' }],
       { delay: L.press, duration: 150, easing: EASE_IN, fill: 'forwards' }));
     /* 150–330 霧面底淡入；錶盤以外的文字 250–450 浮現 */
@@ -981,14 +999,91 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
     track('quiz.open', 'view', { kind, direct, resume });
     showReady(1, direct ? 'direct' : 'open');
   }
-  /** 準備頁「換另一個測驗」：同一個覆蓋層換成另一種測驗的準備頁 */
-  function switchKind() {
-    const k = kind === 'ability' ? 'career' : 'ability';
-    kind = k;
-    title.textContent = QUIZ[k].title;
-    box.dataset.kind = k;
-    track('quiz.open', 'view', { kind, direct: false, resume: !!(S() && S().answers.some((a) => a != null)), via: 'switch' });
-    showReady(1, 'switch');
+  /* ---------- 準備頁「測驗切換」：兩段式選擇＋換票過場；規格見 mockup_v15/switch/motion.md ----------
+     選取狀態、標題、開始鈕在按下瞬間就更新；畫面只負責過場。過場中再切換：進行中的動畫取消，
+     以「目前位置」（computed style）為起點播新過場；離場中的舊票照常播完後移除 */
+  let swLast = 0;
+  const SW_STAMP_GAIN = 0.4;                              /* 重新驗票的印章聲 −8dB（比首次撕票輕） */
+  function swStop(ready) {
+    const c = ready && ready._sw;
+    if (!c) return;
+    c.timers.forEach(clearTimeout);
+    c.anims.forEach((a) => a.cancel());
+    ready._sw = null;
+  }
+  /** 結束所有換票過場（開始倒數前）：新票直接到位、離場中的舊票移除 */
+  function swFinish(ready) {
+    swStop(ready);
+    $$('.pass-out', ready).forEach((p) => p.remove());
+  }
+  function switchTo(to, via = 'click') {
+    const ready = stage.querySelector('.qpage:not(.out) .q-ready');
+    const plan = switchPlan(kind, to);
+    if (!ready || !plan || cd || rv || idx >= 0 || ready.classList.contains('is-press')) return;
+    const { from, dir } = plan, now = performance.now(), rapid = now - swLast < SW_TL.rapid;
+    swLast = now;
+    kind = to;
+    title.textContent = QUIZ[to].title;
+    box.dataset.kind = to;
+    ready.dataset.k = to;
+    const qs = ready.querySelector('.qs');
+    qs.dataset.on = to;
+    $$('.qs-opt', qs).forEach((b) => { const on = b.dataset.k === to; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+    const s = S(), resume = !!(s && s.answers.some((a) => a != null)), btn = ready.querySelector('.start');
+    btn.dataset.evMeta = JSON.stringify({ kind: to });
+    btn.querySelector('span').textContent = resume ? '繼續' : '開始';
+    ready.querySelector('.qs-status').innerHTML = statusHtml(to);
+    sfx('swish', { arg: { dir } });
+    track('quiz.switch', 'click', { kind: to, from, via });
+    track('quiz.open', 'view', { kind: to, direct: false, resume, via: 'switch' });
+    track('quiz.ready', 'view', { kind: to, via: 'switch' });
+    swapPass(ready, to, dir, rapid);
+  }
+  function swapPass(ready, to, dir, rapid) {
+    const T = SW_TL, slot = ready.querySelector('.pass-slot'), st = ready.querySelector('.qs-status');
+    const cur = slot.querySelector('.pass:not(.pass-out)');
+    const can = typeof slot.animate === 'function';
+    /* 目前畫面上的樣子（過場中途也算）：取消前先記下，離場從這裡接續 */
+    const snap = (el, props) => { const o = {}; if (el) { const cs = getComputedStyle(el); props.forEach((p) => { o[p] = cs[p]; }); } return o; };
+    const c0 = cur && can ? snap(cur, ['transform', 'opacity']) : {}, b0 = cur && can ? snap(cur.querySelector('.pass-body'), ['filter']) : {};
+    const k0 = cur && can ? snap(cur.querySelector('.tk-stamp'), ['transform', 'opacity']) : {}, s0 = can ? snap(st, ['opacity']) : {};
+    swStop(ready);
+    const tmp = document.createElement('div');
+    tmp.innerHTML = passHtml(to);
+    const nw = tmp.firstElementChild;
+    if (cur) { cur.classList.add('pass-out'); cur.setAttribute('aria-hidden', 'true'); cur.querySelector('.pass-name').removeAttribute('id'); }
+    slot.append(nw);
+    if (!can) { if (cur) cur.remove(); return; }
+    const c = ready._sw = { anims: [], timers: [] };
+    const A = (el, kf, o, own = true) => { if (!el) return null; const a = el.animate(kf, Object.assign({ fill: 'both' }, o)); if (own) c.anims.push(a); return a; };
+    const rm = !motionOK(), outMs = rm ? T.rmDur : T.outDur;
+    /* 舊票：停在記下的章狀態（中途被打斷的票，章不會突然蓋上），離場後移除；移除不隨下一次切換取消 */
+    if (cur) {
+      A(cur.querySelector('.tk-stamp'), [k0, k0], { duration: outMs, fill: 'forwards' }, false);
+      setTimeout(() => cur.remove(), outMs + 10);
+    }
+    /* 狀態列：前一次還亮著就先 80ms 收掉 → 淡入 → 2060–2260 淡出（文字留在 role=status 內，不清空） */
+    const inAt = rm ? T.rmDur : T.stIn;
+    A(st, [{ opacity: s0.opacity, offset: 0 }, { opacity: 0, offset: 80 / T.stEnd }, { opacity: 0, offset: inAt / T.stEnd, easing: 'ease-out' }, { opacity: 1, offset: (inAt + T.stInDur) / T.stEnd },
+      { opacity: 1, offset: T.stOut / T.stEnd, easing: EASE_IN }, { opacity: 0, offset: 1 }], { duration: T.stEnd, fill: 'none' });
+    if (rm) {
+      /* 減少動態：滑塊直接到位（CSS）；舊票與新票同時交叉淡換 160ms，章已蓋好 */
+      if (cur) A(cur, [{ opacity: c0.opacity }, { opacity: 0 }], { duration: T.rmDur, easing: 'ease-out', fill: 'forwards' }, false);
+      A(nw, [{ opacity: 0 }, { opacity: 1 }], { duration: T.rmDur, easing: 'ease-out', fill: 'backwards' });
+      return;
+    }
+    /* 0–160 舊票離場（ease-in）：往選擇的反方向滑出、微轉、淡出、模糊 */
+    if (cur) {
+      A(cur, [{ transform: c0.transform === 'none' ? 'translateX(0px) rotate(0deg)' : c0.transform, opacity: c0.opacity },
+        { transform: `translateX(${-40 * dir}px) rotate(${-3 * dir}deg)`, opacity: 0 }], { duration: T.outDur, easing: EASE_IN, fill: 'forwards' }, false);
+      A(cur.querySelector('.pass-body'), [{ filter: b0.filter === 'none' ? 'blur(0px)' : b0.filter }, { filter: 'blur(2px)' }], { duration: T.outDur, easing: EASE_IN, fill: 'forwards' }, false);
+    }
+    /* 120–400 新票入場（ease-out）：從選擇的方向滑入 */
+    A(nw, [{ transform: `translateX(${64 * dir}px) rotate(${3 * dir}deg)`, opacity: 0 }, { transform: 'translateX(0px) rotate(0deg)', opacity: 1 }], { delay: T.inAt, duration: T.inDur, easing: EASE_OUT, fill: 'backwards' });
+    A(nw.querySelector('.pass-body'), [{ filter: 'blur(2px)' }, { filter: 'blur(0px)' }], { delay: T.inAt, duration: T.inDur, easing: EASE_OUT, fill: 'backwards' });
+    /* 320–460 驗票章重新落下（維持 −14deg）；印章聲 −8dB，250ms 內連點不疊 */
+    A(nw.querySelector('.tk-stamp'), [{ transform: 'scale(.6) rotate(-14deg)', opacity: 0 }, { transform: 'scale(1) rotate(-14deg)', opacity: 1 }], { delay: T.stampAt, duration: T.stampDur, easing: EASE_OUT, fill: 'backwards' });
+    if (!rapid) c.timers.push(setTimeout(() => sfx('stamp', { haptic: false, arg: { gain: SW_STAMP_GAIN } }), T.stampAt));
   }
   function close() {
     if (box.hidden) return;
@@ -1027,10 +1122,10 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
     const b = e.target.closest('button');
     if (!b || b.closest('.out')) return;
     if (b.classList.contains('opt')) return answer(Number(b.dataset.k));
+    if (b.classList.contains('qs-opt')) return switchTo(b.dataset.k, 'click');
     if (b.getAttribute('role') === 'tab') return selectTab(b);
     const act = b.dataset.act;
     if (act === 'start') return begin(b);
-    if (act === 'other') return switchKind();
     if (act === 'prev') { track('quiz.prev', 'click', { kind, q: idx + 1 }); return prev(); }
     if (act === 'next') { track('quiz.next', 'click', { kind, q: idx + 1 }); return next(); }
     if (act === 'again') { state[kind] = null; box.classList.remove('done'); return showReady(1, 'again'); }
@@ -1069,6 +1164,11 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
       return;
     }
     const t = e.target;
+    if (t.classList && t.classList.contains('qs-opt') && /^Arrow(Left|Right|Up|Down)$/.test(e.key)) {   /* 測驗切換：方向鍵移動並同時選取（roving tabindex） */
+      e.preventDefault();
+      const opts = $$('.qs-opt', t.closest('.qs')), n = opts[(opts.indexOf(t) + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : opts.length - 1)) % opts.length];
+      n.focus({ preventScroll: true }); switchTo(n.dataset.k, 'key'); return;
+    }
     if (t.getAttribute && t.getAttribute('role') === 'tab' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
       const tabs = $$('[role="tab"]', t.closest('[role="tablist"]'));

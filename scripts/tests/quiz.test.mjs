@@ -196,3 +196,72 @@ test('結果揭曉類名與 keyframes 都以 qrv- 開頭、不含 "ad"', async (
   for (const n of names) assert.doesNotMatch(n, /ad/, n);
   assert.doesNotMatch(css.slice(css.indexOf('結果揭曉儀式')), /@keyframes/);            /* 揭曉不用 CSS keyframes（Web Animations 排程） */
 });
+
+// ---------------- 準備頁測驗切換（mockup_v15/switch） ----------------
+test('測驗切換：switchPlan 換成目標測驗並給方向；同一個或不明測驗不切換', async () => {
+  const Q = await import('../../assets/js/quiz.js');
+  assert.deepEqual(Q.switchPlan('ability', 'career'), { kind: 'career', from: 'ability', dir: 1 });
+  assert.deepEqual(Q.switchPlan('career', 'ability'), { kind: 'ability', from: 'career', dir: -1 });
+  assert.equal(Q.switchPlan('career', 'career'), null);
+  assert.equal(Q.switchPlan('ability', 'other'), null);
+  assert.equal(Q.switchPlan('ability', undefined), null);
+});
+
+test('測驗切換時間軸：每段 ≤300ms、總長 460ms、狀態列 2260ms 收起、連點門檻 250ms', async () => {
+  const { SW_TL: T } = await import('../../assets/js/quiz.js');
+  for (const d of [T.outDur, T.inDur, T.stampDur, T.stInDur, T.rmDur]) assert.ok(d <= 300, String(d));
+  assert.equal(T.inAt + T.inDur, 400); assert.equal(T.stampAt + T.stampDur, 460); assert.equal(T.stIn, 460);
+  assert.equal(T.stEnd, 2260); assert.equal(T.rapid, 250);
+});
+
+test('測驗徽記：七面切割（七邊）／角色羅盤，只用 currentColor；章色與說明句', async () => {
+  const M = await import('../../assets/js/marks.js');
+  const gem = M.mark('ability', true), dial = M.mark('career', true);
+  assert.equal(gem.match(/<polygon points="([^"]+)"/)[1].split(' ').length, 7);
+  assert.match(gem, /class="fill"/); assert.doesNotMatch(M.mark('ability'), /class="fill"/);
+  assert.match(dial, /r="9.6"/); assert.match(dial, /M12 12L16.6 6.4 13.3 13.4Z/);
+  for (const s of [gem, dial]) { assert.doesNotMatch(s, /(fill|stroke)="#/); assert.match(s, /aria-hidden="true"/); }
+  assert.deepEqual(M.ACC, { ability: '#45526B', career: '#A85B3C' });
+  assert.deepEqual(M.SUB, { ability: '看見七項能力的分布', career: '找到妳的角色傾向' });
+});
+
+test('前台任何檔案都不出現「另一個測驗」；準備頁不再有舊連結', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const root = new URL('../../', import.meta.url);
+  const files = ['index.html', 'privacy.html', ...readdirSync(new URL('assets/js/', root)).map((f) => 'assets/js/' + f), ...readdirSync(new URL('assets/css/', root)).map((f) => 'assets/css/' + f)];
+  for (const f of files) {
+    const t = readFileSync(new URL(f, root), 'utf8');
+    assert.doesNotMatch(t, /另一個測驗/, f);
+    assert.doesNotMatch(t, /qr-switch|data-act="other"|quiz\.other/, f);
+  }
+});
+
+test('測驗切換與徽記的類名不含 "ad"；首頁票券用同一組徽記與章色', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../assets/css/v7.css', import.meta.url), 'utf8');
+  const sw = css.slice(css.indexOf('測驗切換（準備頁兩段式選擇）'), css.indexOf('小螢幕（矮、窄）'));
+  const names = new Set([...sw.matchAll(/\.([a-z][\w-]*)/g)].map((m) => m[1]));
+  assert.ok(names.has('qs-opt') && names.has('pass-mark') && names.has('tk-mark'));
+  for (const n of names) assert.doesNotMatch(n, /ad/, n);
+  assert.match(sw, /\[data-k="ability"\],\.tk-wrap\[data-kind="ability"\]\{--acc:#45526B/);
+  assert.match(sw, /\[data-k="career"\],\.tk-wrap\[data-kind="career"\]\{--acc:#A85B3C/);
+  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+  const M = await import('../../assets/js/marks.js');
+  for (const k of ['ability', 'career']) {
+    const blk = html.slice(html.indexOf(`<div class="tk-wrap" data-kind="${k}">`), html.indexOf('</div>', html.indexOf(`<div class="tk-wrap" data-kind="${k}">`)));
+    assert.ok(blk.includes(`<span class="tk-mark mk" aria-hidden="true">${M.mark(k, true)}</span>`), k + '：票券徽記與 marks.js 一致');
+  }
+});
+
+test('小螢幕版面：只在寬 <768 且矮的視窗收緊；字級與觸控高度不低於下限；不新增含 "ad" 的類名', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../assets/css/v7.css', import.meta.url), 'utf8');
+  const blk = css.slice(css.indexOf('小螢幕（矮、窄）'));
+  const qs = [...blk.matchAll(/@media ([^{]+)\{/g)].map((m) => m[1].trim());
+  assert.deepEqual(qs, ['(max-width:767.98px) and (max-height:740px)', '(max-width:767.98px) and (max-height:600px)']);
+  for (const m of blk.matchAll(/\.q-text\{[^}]*font-size:(?:clamp\((\d+(?:\.\d+)?)px[^)]*\)|(\d+(?:\.\d+)?)px)/g)) assert.ok(+(m[1] || m[2]) >= 16, 'q-text ' + m[0]);
+  for (const m of blk.matchAll(/\.opt\{[^}]*font-size:(\d+(?:\.\d+)?)px/g)) assert.ok(+m[1] >= 14, 'opt ' + m[0]);
+  for (const m of blk.matchAll(/(\.opt|\.opts\.two \.opt|\.nav|\.qs-opt)\{[^}]*min-height:(\d+)px/g)) assert.ok(+m[2] >= 44, m[0]);
+  const names = new Set([...blk.matchAll(/\.([a-z][\w-]*)/g)].map((m) => m[1]));
+  for (const n of names) if (/ad/.test(n)) assert.equal(n, 'q-ready', '只沿用既有的 q-ready');
+});

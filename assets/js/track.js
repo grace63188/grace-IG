@@ -9,8 +9,8 @@
    - 點擊自動收集：document 擷取階段監聽 [data-ev]；動態事件由各模組呼叫 track()
    - 點擊與畫面分開（CONTRACT 1.2）：act 為 view／close／toggle（或 meta.auto）的畫面變化送 n=view、k=元素代號，不算點擊；
      外連 <a data-ev> 送 n=out、k=元素代號、v=按鈕文字、u=網域＋路徑；作答 quiz_q 的 v＝「題號:選項」（選項 0 起，不含任何文字） */
-import { isDemo } from './config.js?v=20261024d';
-import { post, beacon as sendBeacon, setIdentity, fetchIp } from './api.js?v=20261024d';
+import { isDemo } from './config.js?v=20261024e';
+import { post, beacon as sendBeacon, setIdentity, fetchIp } from './api.js?v=20261024e';
 
 export const Q_KEY = 'gh.q';
 export const DID_KEY = 'gh.did';
@@ -115,6 +115,7 @@ export function wire(el, act, meta = {}) {
       return { n: 'quiz_q', k: kind, v: q ? q + (o >= 0 && o <= 9 ? ':' + o : '') : '' };
     }
     if (el === 'quiz.again') return { n: 'quiz_retry', k: kind };
+    if (el === 'quiz.switch') return { n: 'card', k: 'quiz', v: 'quiz.switch.' + kind };   /* 準備頁測驗切換：v＝切換後的測驗 */
     if (el === 'quiz.complete') return { local: true };                /* quiz.result 會自動補 quiz_done */
   }
   if (VIEW_ACTS.includes(act) || meta.auto) {                         /* 畫面顯示／關閉／展開：不算點擊 */
