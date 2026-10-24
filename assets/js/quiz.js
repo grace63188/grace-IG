@@ -7,15 +7,18 @@
    - 倒數：開始鈕化成錶面、金弧掃描、收束鐘聲，總長 3160ms；點畫面／Enter／空白鍵略過，Esc 關閉；減少動態改為「準備好了」0.6s 淡入淡出
      畫面（Web Animations＋rAF）與聲音（sound.js cd*）都以按下那一刻為基準一次排程，聲音取同一個音訊時鐘讀數，不逐一漂移
    - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
-   - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝香檳鐘聲；事件：每題作答進度、完成與結果 */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261024b';
-import { sfx, clock, hushCd } from './sound.js?v=20261024b';
-import { track } from './track.js?v=20261024b';
-import { submitResult, onResults, session } from './auth.js?v=20261024b';
+   - 結果揭曉：最後一題作答後先算好結果、存檔、送出（quiz.result 背景送出，不等網路），再播放揭曉層約 3 秒——
+     能力健檢＝七軸金線長成雷達、落定後以 FLIP 平移成結果頁的雷達；職涯定位＝六枚角色印記繞錶圈轉動、收攏、金印落定、結果頁分段浮上
+     點畫面／Enter／空白鍵略過（前 220ms 不受理）；Esc 照常關閉測驗；減少動態改為「結果出爐」0.6s 淡入淡出；規格見 mockup_v13/reveal/motion.md
+   - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝rv* 子音軌（同一個音訊時鐘讀數一次排程）；事件：每題作答進度、完成與結果、quiz.reveal／quiz.reveal_skip（view） */
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261024c';
+import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261024c';
+import { track } from './track.js?v=20261024c';
+import { submitResult, onResults, session } from './auth.js?v=20261024c';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261024b';
+} from './quizdata.js?v=20261024c';
 
 export const STORE_KEY = 'grace.quiz.v1';
 const SIGNIN = 'https://www.graceschool.com.tw/member/signin';
@@ -36,7 +39,49 @@ export const CD_TL = {
   skipOut: 150, guard: 220,
 };
 export const CD_RM = { fade: 200, chime: 200, hold: 400, q1: 600, done: 760 };
-const EASE_OUT = 'cubic-bezier(0.23,1,0.32,1)', EASE_IN = 'cubic-bezier(0.55,0,1,0.45)';
+const EASE_OUT = 'cubic-bezier(0.23,1,0.32,1)', EASE_IN = 'cubic-bezier(0.55,0,1,0.45)', EASE_MOVE = 'cubic-bezier(0.77,0,0.175,1)';
+
+/* 結果揭曉時間軸（ms，最後一題作答完成＝0）；規格見 mockup_v13/reveal/motion.md */
+export const RV_TL = {                 /* 能力健檢 */
+  exit: 150,                           /* 0–150 最後一題退場 */
+  bg: 150, bgIn: 180,                  /* 霧面放射底淡入 */
+  dial: 150, dialIn: 300, grid: 250,   /* 錶面浮起；格線 250–450 */
+  text: 250, labels: 420,              /* 測驗名稱與略過提示上浮；能力名稱繞圈浮現（錯開 40ms） */
+  axis0: 720, step: 220, grow: 240, tick: 140,   /* 第 i 軸＝720＋220i；金線 240ms；+140 珍珠落定＋tick */
+  lock: 2300,                          /* 落定：面積、衝擊環、反光、輕壓 */
+  word: 2380,                          /* 階段名逐字浮現 */
+  morph: 2700, morphDur: 300,          /* 交棒：FLIP 平移到結果頁的位置、金轉墨 */
+  kindIn: 2840, rest: 2900,            /* 「能力健檢結果」淡入；說明句與分項卡上浮 */
+  done: 3000, end: 3190,               /* 換成結果頁上真正的元素、揭曉層移除 */
+  lines: [300, 1100, 2240],            /* 狀態句：第 2、3 句在 +140 入場（1240／2380） */
+};
+export const RV_TL_C = {               /* 職涯定位 */
+  exit: 150, bg: 150, dial: 150, text: 250, index: 300, marks: 420,
+  spin: 700, spinDur: 1250, turn: 540, /* 錶圈順時針 540°，cubic-bezier(.4,0,.35,1) */
+  converge: 1980, seal: 2230, lock: 2410,
+  out: 2710, outDur: 140, rest: 2760, done: 3150,
+  lines: [300, 1100, 2270],            /* 第 2、3 句在 1240／2410 入場 */
+};
+export const RV_RM = { fade: 200, chime: 200, hold: 400, out: 600, done: 600 };
+export const RV_GUARD = 220, RV_SKIP_OUT = 150;
+export const RV_LINES = {
+  ability: ['整理妳的選擇', '對照七項能力', '妳的結果出爐了'],
+  career: ['整理妳的選擇', '對照六種角色', '妳的角色出爐了'],
+};
+function bez(x1, y1, x2, y2) {
+  const X = (t) => 3 * x1 * t * (1 - t) ** 2 + 3 * x2 * t * t * (1 - t) + t ** 3, Y = (t) => 3 * y1 * t * (1 - t) ** 2 + 3 * y2 * t * t * (1 - t) + t ** 3;
+  return (x) => { let lo = 0, hi = 1; for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (X(m) < x) lo = m; else hi = m; } return Y((lo + hi) / 2); };
+}
+const SPIN = bez(0.4, 0, 0.35, 1);
+const clamp01 = (u) => Math.max(0, Math.min(1, u));
+/** 錶圈在 t 毫秒時轉過的角度（畫面與 tick 聲同一條曲線） */
+export const spinAt = (t) => RV_TL_C.turn * SPIN(clamp01((t - RV_TL_C.spin) / RV_TL_C.spinDur));
+/* 每經過一格（60°）一聲 tick：以二分法反求時間；共 9 聲，最後一聲＝停定（1950） */
+export const RV_TICKS_C = Array.from({ length: RV_TL_C.turn / 60 }, (_, j) => {
+  let lo = RV_TL_C.spin, hi = RV_TL_C.spin + RV_TL_C.spinDur;
+  for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (spinAt(m) < 60 * (j + 1) - 1e-6) lo = m; else hi = m; }
+  return Math.round(hi);
+});
 
 const QUIZ = {
   ability: { title: '能力健檢', meta: '14 題・約 3 分鐘', qs: ABILITY_QUESTIONS,
@@ -194,7 +239,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
   const title = $('#qz-title'), count = $('#qz-count'), bar = $('#qz-bar'), stage = $('#qz-stage'), closeBtn = $('#qz-close');
   const progress = $('#qz-progress');
   const state = { ability: null, career: null };   /* 作答中（未完成）保留於記憶體 */
-  let kind = null, idx = -1, opener = null, advT = 0, cd = null;
+  let kind = null, idx = -1, opener = null, advT = 0, cd = null, rv = null;
   const shell = $('.qz-shell', box);
 
   const motionOK = () => !reduced();
@@ -350,7 +395,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
   /* ---------- 流程 ---------- */
   /** 開始前準備頁（登入完成、已登入撕票、重新測驗、換另一個測驗）；via 記錄從哪裡進來 */
   function showReady(dir = 1, via = '') {
-    cdCancel();
+    cdCancel(); rvCancel();
     clearTimeout(advT);
     idx = -1; setProgress(-1);
     turn(readyHtml(), dir, (el) => setTimeout(() => { const b = el.querySelector('.start'); if (b) b.focus({ preventScroll: true }); }, 30));
@@ -546,33 +591,336 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
     track('quiz.complete', 'complete', kind === 'ability'
       ? { kind, result: r.stage.name, top: r.allSame ? '' : r.top, low: r.allSame ? '' : r.low, total: r.total }
       : { kind, result: r.primary, secondary: r.secondary });
-    /* 契約 quiz.result：登入中送出；資料中心會自動補 quiz_done 事件 */
+    /* 契約 quiz.result：登入中送出（背景，不等回應）；資料中心會自動補 quiz_done 事件 */
     submitResult(kind === 'ability'
       ? { kind, at: saved.at, answers: s.answers.slice(), total: r.total, stage: r.stage.name, top: r.allSame ? '' : r.top, low: r.allSame ? '' : r.low, scores: r.scores }
       : { kind, at: saved.at, answers: s.answers.slice(), primary: r.primary, secondary: r.secondary, counts: r.counts });
     state[kind] = null;                                   /* 完成後清掉作答，下次從頭開始 */
     idx = QUIZ[kind].qs.length; setProgress(idx);
     box.classList.add('done');
+    const k = kind;
+    /* 結果卡：揭曉結束後（等字型就緒）再繪製，不在揭曉動畫中占用主執行緒 */
+    const paint = (el) => {
+      const img = el.querySelector('#qz-card-img');
+      if (!img) return;
+      const go = () => {
+        try {
+          const cv = document.createElement('canvas');
+          drawCard(cv, k, r);
+          img.src = cv.toDataURL('image/png');
+          img.alt = k === 'ability' ? `能力健檢結果卡：${r.stage.name}` : `職涯定位結果卡：主角色${r.primary}，副角色${r.secondary}`;
+          img.dataset.kind = k;
+          el._canvas = cv;
+        } catch (e) { img.closest('.rcard').hidden = true; }
+      };
+      const fr = document.fonts && document.fonts.ready;
+      if (fr && typeof fr.then === 'function') fr.then(go, go); else go();
+    };
+    if (typeof stage.animate === 'function') { rvStart(r, paint); return; }
+    /* 後備（不支援 Web Animations）：原本的生長版本 */
     sfx('reveal', { delay: motionOK() ? 0.12 : 0 });
     const el = turn(resultHtml(r), 1);
     el.querySelector('.result').classList.add('grow');
     requestAnimationFrame(() => requestAnimationFrame(() => el.querySelector('.result').classList.add('go')));
     const h = el.querySelector('.r-big'); h.tabIndex = -1;
     setTimeout(() => h.focus({ preventScroll: true }), 40);
-    /* 結果卡：等字型就緒再繪製 */
-    const img = el.querySelector('#qz-card-img');
-    const paint = () => {
-      try {
-        const cv = document.createElement('canvas');
-        drawCard(cv, kind === 'ability' ? 'ability' : 'career', r);
-        img.src = cv.toDataURL('image/png');
-        img.alt = kind === 'ability' ? `能力健檢結果卡：${r.stage.name}` : `職涯定位結果卡：主角色${r.primary}，副角色${r.secondary}`;
-        img.dataset.kind = kind;
-        el._canvas = cv;
-      } catch (e) { img.closest('.rcard').hidden = true; }
+    paint(el);
+  }
+
+  /* ---------- 結果揭曉 ---------- */
+  const f1 = (v) => v.toFixed(1);
+  /** 一個元素一條軌道：steps＝[[毫秒, 樣式, 該段 easing], …]，fill both（開始前停在第一格、結束後停在最後一格） */
+  const frames = (steps) => { const t0 = steps[0][0], d = Math.max(1, steps[steps.length - 1][0] - t0); return steps.map(([ms, p, e]) => Object.assign({ offset: (ms - t0) / d, easing: e || 'linear' }, p)); };
+  function tl(c, el, steps) {
+    if (!el) return null;
+    const t0 = steps[0][0], d = Math.max(1, steps[steps.length - 1][0] - t0);
+    const a = el.animate(frames(steps), { delay: t0, duration: d, fill: 'both' });
+    c.anims.push(a);
+    return a;
+  }
+  const riseIn = (c, el, a, dur, dy = 10) => tl(c, el, [[a, { opacity: 0, transform: `translateY(${dy}px)` }, EASE_OUT], [a + dur, { opacity: 1, transform: 'translateY(0px)' }]]);
+  const fadeOut = (c, el, a, b) => tl(c, el, [[a, { opacity: 1 }, EASE_IN], [b, { opacity: 0 }]]);
+
+  function abilityStageHtml(r) {
+    const K = ABILITIES, n = K.length, cx = 180, cy = 170, R = 104;
+    const ring = (k) => K.map((_, i) => polar(cx, cy, (R * k) / 4, i, n).map(f1).join(',')).join(' ');
+    const tips = K.map((k, i) => polar(cx, cy, R * Math.max(0.08, r.scores[k] / 6), i, n));
+    const labels = K.map((k, i) => { const [x, y] = polar(cx, cy, R + 22, i, n); const an = Math.abs(x - cx) < 6 ? 'middle' : x > cx ? 'start' : 'end'; return `<text class="qrv-label" x="${f1(x)}" y="${f1(y + 5)}" text-anchor="${an}">${esc(k)}</text>`; }).join('');
+    return `<span class="qrv-stage">
+        <span class="qrv-dial"><span class="qrv-sheen"></span></span>
+        <i class="qrv-shock"></i>
+        <svg class="qrv-svg" viewBox="0 0 360 340" focusable="false">
+          <defs><radialGradient id="qrv-pearl" cx="40%" cy="30%" r="70%"><stop offset="0" stop-color="#F7E9C8"/><stop offset=".6" stop-color="#D7BC84"/><stop offset="1" stop-color="#A9874A"/></radialGradient></defs>
+          <g class="qrv-grid">${[1, 2, 3, 4].map((k) => `<polygon points="${ring(k)}"/>`).join('')}${K.map((_, i) => { const [x, y] = polar(cx, cy, R, i, n); return `<line x1="${cx}" y1="${cy}" x2="${f1(x)}" y2="${f1(y)}"/>`; }).join('')}</g>
+          <polygon class="qrv-fill" points="${tips.map((p) => p.map(f1).join(',')).join(' ')}"/>
+          <g class="qrv-glow">
+            ${tips.map((p) => `<line class="qrv-spoke" pathLength="1" x1="${cx}" y1="${cy}" x2="${f1(p[0])}" y2="${f1(p[1])}"/>`).join('')}
+            ${tips.map((p, i) => { const q = tips[(i + n - 1) % n]; return `<line class="qrv-edge" pathLength="1" x1="${f1(q[0])}" y1="${f1(q[1])}" x2="${f1(p[0])}" y2="${f1(p[1])}"/>`; }).join('')}
+          </g>
+          ${tips.map((p) => `<circle class="qrv-tip" cx="${f1(p[0])}" cy="${f1(p[1])}" r="4.5"/>`).join('')}
+          ${tips.map((p) => `<circle class="qrv-dot" cx="${f1(p[0])}" cy="${f1(p[1])}" r="4"/>`).join('')}
+          ${labels}
+        </svg>
+      </span>
+      <span class="qrv-word">${[...r.stage.name].map((ch) => `<span>${esc(ch)}</span>`).join('')}</span>`;
+  }
+  function careerStageHtml(r) {
+    const marks = ROLES.map((x) => `<span class="qrv-mark">${ROLE_CODE[x]}</span>`).join('');
+    return `<span class="qrv-well">
+        <span class="qrv-dial"><img class="qrv-emblem" src="assets/img/logo-academy-mark.webp" width="122" height="136" alt="">
+          <span class="qrv-seal"><span class="qrv-seal-code">${ROLE_CODE[r.primary]}${ROLE_CODE[r.secondary]}</span><span class="qrv-seal-name">${esc(r.primary)}</span><span class="qrv-seal-sub">副・${esc(r.secondary)}</span></span>
+          <span class="qrv-sheen"></span></span>
+        <i class="qrv-shock"></i>
+        <span class="qrv-marks">${marks}</span>
+        <i class="qrv-index"></i>
+      </span>`;
+  }
+  function rvHtml(k, r, rm) {
+    if (rm) return `<span class="qrv-bg" aria-hidden="true"></span><button class="qrv-hit" type="button" aria-label="略過，直接看結果"><span class="qrv-rm-word" aria-hidden="true">結果出爐</span></button><span class="sr-only" role="status"></span>`;
+    return `<span class="qrv-bg" aria-hidden="true"></span>
+      <button class="qrv-hit" type="button" aria-label="略過，直接看結果"><span class="qrv-stack" aria-hidden="true">
+        <span class="qrv-kind">${esc(QUIZ[k].title)}</span>
+        ${k === 'ability' ? abilityStageHtml(r) : careerStageHtml(r)}
+        <span class="qrv-line">${RV_LINES[k].map((l) => `<span>${esc(l)}</span>`).join('')}</span>
+        <span class="qrv-skip">輕點畫面，直接看結果</span>
+      </span></button>
+      <span class="sr-only" role="status"></span>`;
+  }
+
+  /** 揭曉開始：結果頁已在底下排好（隱藏），揭曉層蓋在上面；畫面與聲音以同一刻為基準一次排程 */
+  function rvStart(r, paint) {
+    const k = kind, isA = k === 'ability', rm = !motionOK();
+    const a0 = clock();                                   /* 唯一一次音訊時鐘讀數：之後所有聲音＝a0＋毫秒 */
+    const c = rv = { t0: performance.now(), kind: k, rm, anims: [], timers: [], raf: 0, el: null, hit: null, res: null, old: null, skipped: false, paint, pose: null };
+    /* 聲音一次排好；震動由本層計時器觸發（略過時一起取消） */
+    const at = (name, ms, arg) => {
+      sfx(name, { at: a0 != null ? a0 + ms / 1000 : null, delay: ms / 1000, arg, haptic: false });
+      const p = name === 'rvTick' && !isA ? 4 : buzzOf(name);
+      if (p != null) later(c, ms, () => vibrate(p));
     };
-    const fr = document.fonts && document.fonts.ready;
-    if (fr && typeof fr.then === 'function') fr.then(paint, paint); else paint();
+    const L = RV_TL, C = RV_TL_C;
+    if (rm) at('rvChime', RV_RM.chime);
+    else if (isA) {
+      at('rvPad', L.bg, { dur: (L.lock - 10 - L.bg) / 1000 });
+      ABILITIES.forEach((_, i) => at('rvTick', L.axis0 + i * L.step + L.tick, { f: RV_HZ[i], i }));
+      at('rvLock', L.lock);
+      at('rvRise', L.morph);
+    } else {
+      at('rvPad', C.bg, { dur: (C.lock - 10 - C.bg) / 1000 });
+      const T = RV_TICKS_C, last = T.length - 1, gaps = T.map((t, i) => t - (i ? T[i - 1] : C.spin)), g0 = Math.min(...gaps.slice(0, last));
+      T.forEach((t, i) => at('rvTick', t, i === last ? { f: RV_LAND_HZ, gain: 1, i } : { f: RV_SPIN_HZ[i % 3], gain: 0.55 + 0.45 * (g0 / gaps[i]), i }));
+      at('rvLock', C.lock, { stamp: true });
+      at('rvRise', C.out);
+    }
+
+    /* 結果頁排在底下；最後一題退場 */
+    const old = c.old = stage.querySelector('.qpage:not(.out)');
+    const res = c.res = document.createElement('div');
+    res.className = 'qpage';
+    res.innerHTML = resultHtml(r);
+    if (old) { old.classList.add('out'); old.setAttribute('aria-hidden', 'true'); setInert(old, true); }
+    stage.append(res);
+    stage.scrollTop = 0; box.scrollTop = 0;
+    const big = res.querySelector('.r-big'); big.tabIndex = -1;
+
+    const el = c.el = document.createElement('div');
+    el.className = `qrv${rm ? ' rm' : ''}`;
+    el.innerHTML = rvHtml(k, r, rm);
+    box.append(el);
+    c.hit = el.querySelector('.qrv-hit');
+    c.hit.addEventListener('click', () => rvSkip());
+    c.hit.addEventListener('keydown', (e) => { if (e.repeat && (e.key === 'Enter' || e.key === ' ')) e.preventDefault(); });
+    const still = (e) => e.preventDefault();             /* 揭曉中不捲動底下的結果頁（交棒位置以結果頁為準） */
+    el.addEventListener('wheel', still, { passive: false });
+    el.addEventListener('touchmove', still, { passive: false });
+    setInert(shell, true);
+    c.hit.focus({ preventScroll: true });
+    const status = el.querySelector('[role="status"]');
+    later(c, 60, () => { status.textContent = isA ? `能力健檢結果出爐：${r.stage.name}` : `職涯定位結果出爐：主角色${r.primary}，副角色${r.secondary}`; });
+    track('quiz.reveal', 'view', { kind: k });
+    const bg = el.querySelector('.qrv-bg');
+
+    if (rm) {
+      /* 減少動態：0–200 最後一題淡出、「結果出爐」淡入；200–400 停留；400–600 淡出、結果頁同步淡入 */
+      tl(c, old, [[0, { opacity: 1 }, 'ease-out'], [RV_RM.fade, { opacity: 0 }]]);
+      [bg, el.querySelector('.qrv-rm-word')].forEach((x) => tl(c, x, [[0, { opacity: 0 }, 'ease-out'], [RV_RM.fade, { opacity: 1 }], [RV_RM.hold, { opacity: 1 }, 'ease-in'], [RV_RM.out, { opacity: 0 }]]));
+      tl(c, res, [[RV_RM.hold, { opacity: 0 }, 'ease-out'], [RV_RM.out, { opacity: 1 }]]);
+      later(c, RV_RM.done, () => rvEnd(c));
+      return;
+    }
+    /* 0–150 最後一題退場（同倒數時準備頁的退場） */
+    tl(c, old, [[0, { opacity: 1, filter: 'blur(0px)', transform: 'translateY(0px)' }, EASE_IN], [L.exit, { opacity: 0, filter: 'blur(4px)', transform: 'translateY(-12px)' }]]);
+    later(c, L.exit + 20, () => { if (old) old.remove(); });
+    /* 狀態句：三句疊在同一格依序替換（入 200 ease-out、出 140 ease-in、上下 6px） */
+    const sw = isA ? L.lines : C.lines, ln = $$('.qrv-line span', el);
+    tl(c, ln[0], [[sw[0], { opacity: 0, transform: 'translateY(6px)' }, EASE_OUT], [sw[0] + 200, { opacity: 1, transform: 'translateY(0px)' }], [sw[1], { opacity: 1, transform: 'translateY(0px)' }, EASE_IN], [sw[1] + 140, { opacity: 0, transform: 'translateY(-6px)' }]]);
+    tl(c, ln[1], [[sw[1] + 140, { opacity: 0, transform: 'translateY(6px)' }, EASE_OUT], [sw[1] + 340, { opacity: 1, transform: 'translateY(0px)' }], [sw[2], { opacity: 1, transform: 'translateY(0px)' }, EASE_IN], [sw[2] + 140, { opacity: 0, transform: 'translateY(-6px)' }]]);
+    tl(c, ln[2], [[sw[2] + 140, { opacity: 0, transform: 'translateY(6px)' }, EASE_OUT], [sw[2] + 340, { opacity: 1, transform: 'translateY(0px)' }]]);
+    /* 測驗名稱與略過提示：250–450 上浮 6px（能力健檢在交棒時 140ms 淡出；職涯定位隨整組縮小淡出） */
+    const tx = isA ? L.text : C.text;
+    $$('.qrv-kind, .qrv-skip', el).forEach((x) => tl(c, x, isA
+      ? [[tx, { opacity: 0, transform: 'translateY(6px)' }, EASE_OUT], [tx + 200, { opacity: 1, transform: 'translateY(0px)' }], [L.morph, { opacity: 1, transform: 'translateY(0px)' }, EASE_IN], [L.morph + 140, { opacity: 0, transform: 'translateY(0px)' }]]
+      : [[tx, { opacity: 0, transform: 'translateY(6px)' }, EASE_OUT], [tx + 200, { opacity: 1, transform: 'translateY(0px)' }]]));
+    if (isA) rvAbility(c, r, el, res, bg); else rvCareer(c, r, el, res, bg);
+  }
+
+  function rvAbility(c, r, el, res, bg) {
+    const L = RV_TL, n = ABILITIES.length;
+    const st = el.querySelector('.qrv-stage'), dial = el.querySelector('.qrv-dial'), word = el.querySelector('.qrv-word');
+    const spokes = $$('.qrv-spoke', el), edges = $$('.qrv-edge', el), tips = $$('.qrv-tip', el), dots = $$('.qrv-dot', el), labels = $$('.qrv-label', el);
+    const chart = res.querySelector('.chart'), big = res.querySelector('.r-big');
+    const M = L.morph, ME = L.morph + L.morphDur;
+    tl(c, bg, [[L.bg, { opacity: 0 }, EASE_OUT], [L.bg + L.bgIn, { opacity: 1 }], [M + 60, { opacity: 1 }, 'ease-in-out'], [M + 260, { opacity: 0 }]]);
+    /* 150–450 錶面浮起；2700 起 120ms 內縮至 0.94 淡出 */
+    tl(c, dial, [[L.dial, { opacity: 0, transform: 'scale(0.92)' }, EASE_OUT], [L.dial + L.dialIn, { opacity: 1, transform: 'scale(1)' }], [M, { opacity: 1, transform: 'scale(1)' }, EASE_IN], [M + 120, { opacity: 0, transform: 'scale(0.94)' }]]);
+    tl(c, el.querySelector('.qrv-grid'), [[L.grid, { opacity: 0 }, EASE_OUT], [L.grid + 200, { opacity: 1 }]]);
+    $$('.qrv-grid polygon, .qrv-grid line', el).forEach((g) => tl(c, g, [[M, { stroke: 'rgba(226,203,154,.2)' }, EASE_OUT], [M + 200, { stroke: 'rgba(120,120,116,.32)' }]]));
+    /* 能力名稱：420 起繞圈浮現（墨色第三階）→ 該軸點亮時轉香檳金字 → 落定回到墨色第二階（＝結果頁標籤色） */
+    labels.forEach((x, i) => {
+      const a = L.labels + i * 40, lit = L.axis0 + i * L.step + L.tick;
+      tl(c, x, [[a, { opacity: 0, fill: '#545452' }, EASE_OUT], [a + 200, { opacity: 1, fill: '#545452' }], [lit, { opacity: 1, fill: '#545452' }, EASE_OUT], [lit + 120, { opacity: 1, fill: '#6F5426' }], [L.lock, { opacity: 1, fill: '#6F5426' }, EASE_OUT], [L.lock + 240, { opacity: 1, fill: '#3A3A38' }]]);
+    });
+    /* 第 i 軸：金線由圓心長到分數；+100–300 與前一軸連線；+120–280 珍珠落定；交棒時珍珠換成墨點、連線轉墨 */
+    spokes.forEach((sp, i) => {
+      const a = L.axis0 + i * L.step;
+      tl(c, sp, [[a, { strokeDashoffset: 1, opacity: 0.9 }, EASE_OUT], [a + L.grow, { strokeDashoffset: 0, opacity: 0.9 }], [L.lock, { strokeDashoffset: 0, opacity: 0.9 }, EASE_OUT], [L.lock + 300, { strokeDashoffset: 0, opacity: 0.35 }], [M, { strokeDashoffset: 0, opacity: 0.35 }, EASE_IN], [M + 140, { strokeDashoffset: 0, opacity: 0 }]]);
+      tl(c, tips[i], [[a + 120, { opacity: 0, transform: 'scale(0.4)' }, EASE_OUT], [a + 280, { opacity: 1, transform: 'scale(1)' }], [M, { opacity: 1, transform: 'scale(1)' }, EASE_OUT], [M + 240, { opacity: 0, transform: 'scale(0.89)' }]]);
+      tl(c, dots[i], [[M, { opacity: 0 }, EASE_OUT], [M + 240, { opacity: 1 }]]);
+      const e0 = i ? a + 100 : L.axis0 + (n - 1) * L.step + 100;   /* 第 1 條連線（第 7 軸→第 1 軸）在最後一軸時畫回，雷達閉合 */
+      tl(c, edges[i], [[e0, { strokeDashoffset: 1, stroke: '#E2CB9A' }, EASE_OUT], [e0 + 200, { strokeDashoffset: 0, stroke: '#E2CB9A' }], [M, { strokeDashoffset: 0, stroke: '#E2CB9A' }, EASE_OUT], [M + 240, { strokeDashoffset: 0, stroke: '#14151B' }]]);
+    });
+    tl(c, el.querySelector('.qrv-glow'), [[M, { filter: 'drop-shadow(0 0 3px rgba(226,203,154,.75))' }, EASE_OUT], [M + 200, { filter: 'drop-shadow(0 0 0px rgba(226,203,154,0))' }]]);
+    /* 2300 落定 */
+    tl(c, el.querySelector('.qrv-fill'), [[L.lock, { opacity: 0, fill: 'rgba(226,203,154,.2)' }, EASE_OUT], [L.lock + 300, { opacity: 1, fill: 'rgba(226,203,154,.2)' }], [M, { opacity: 1, fill: 'rgba(226,203,154,.2)' }, EASE_OUT], [M + 240, { opacity: 1, fill: 'rgba(20,21,27,.09)' }]]);
+    /* 香檳金圈：隨錶面浮起成為錶緣，落定時外擴成衝擊環 */
+    tl(c, el.querySelector('.qrv-shock'), [[L.dial, { opacity: 0, transform: 'scale(1)' }, EASE_OUT], [L.dial + L.dialIn, { opacity: 0.9, transform: 'scale(1)' }], [L.lock, { opacity: 0.9, transform: 'scale(1)' }, EASE_OUT], [L.lock + 340, { opacity: 0, transform: 'scale(1.45)' }]]);
+    tl(c, el.querySelector('.qrv-sheen'), [[L.lock, { transform: 'translateX(-140%) skewX(-18deg)' }, 'cubic-bezier(.3,0,.2,1)'], [L.lock + 380, { transform: 'translateX(330%) skewX(-18deg)' }]]);
+    /* 2380 起階段名逐字浮現（每字錯開 50ms，同 .r-big） */
+    $$('.qrv-word span', el).forEach((x, i) => riseIn(c, x, L.word + i * 50, 300, 14));
+    /* 交棒（FLIP）：揭曉層的雷達／階段名平移到結果頁的雷達／.r-big；幾何與 chartSvg 相同，通常只有平移（矮螢幕外層縮放時才補縮放） */
+    const measure = () => {
+      const a = st.getBoundingClientRect(), b = chart.getBoundingClientRect(), wa = word.getBoundingClientRect(), wb = big.getBoundingClientRect();
+      const ps = a.width / (st.offsetWidth || 1) || 1;
+      return { dx: (b.left + b.width / 2 - (a.left + a.width / 2)) / ps, dy: (b.top + b.height / 2 - (a.top + a.height / 2)) / ps, k: b.width / (a.width || 1),
+        wdx: (wb.left + wb.width / 2 - (wa.left + wa.width / 2)) / ps, wdy: (wb.top + wb.height / 2 - (wa.top + wa.height / 2)) / ps, wk: wb.height / (wa.height || 1) };
+    };
+    const stSteps = (g) => [[L.lock - 40, { transform: 'translate(0px,0px) scale(1)' }, EASE_IN], [L.lock, { transform: 'translate(0px,0px) scale(1.03)' }, 'cubic-bezier(0.2,0,0,1)'], [L.lock + 220, { transform: 'translate(0px,0px) scale(1)' }], [M, { transform: 'translate(0px,0px) scale(1)' }, EASE_MOVE], [ME, { transform: `translate(${f1(g.dx)}px,${f1(g.dy)}px) scale(${g.k.toFixed(4)})` }]];
+    const wSteps = (g) => [[M, { transform: 'translate(0px,0px) scale(1)' }, EASE_MOVE], [ME, { transform: `translate(${f1(g.wdx)}px,${f1(g.wdy)}px) scale(${g.wk.toFixed(4)})` }]];
+    let g = measure();
+    const stA = tl(c, st, stSteps(g)), wA = tl(c, word, wSteps(g));
+    c.flip = g;
+    /* 交棒前再量一次（字型載入、視窗大小改變都以當下為準） */
+    later(c, M - 30, () => { g = measure(); c.flip = g; try { stA.effect.setKeyframes(frames(stSteps(g))); wA.effect.setKeyframes(frames(wSteps(g))); } catch (e) { /* 舊瀏覽器 */ } });
+    fadeOut(c, el.querySelector('.qrv-line'), M, M + 140);
+    /* 3000：揭曉層的雷達與階段名換成結果頁上真正的元素（同幾何，畫面不跳） */
+    [chart, big].forEach((x) => tl(c, x, [[L.done - 1, { opacity: 0 }], [L.done, { opacity: 1 }]]));
+    [st, word].forEach((x) => tl(c, x, [[L.done - 1, { opacity: 1 }], [L.done, { opacity: 0 }]]));
+    tl(c, res.querySelector('.r-kind'), [[L.kindIn, { opacity: 0 }, EASE_OUT], [L.done, { opacity: 1 }]]);
+    riseIn(c, res.querySelector('.r-lead'), L.rest, 260);
+    riseIn(c, res.querySelector('.r-rest'), L.rest + 30, 260);
+    later(c, L.done, () => rvEnd(c));
+  }
+
+  function rvCareer(c, r, el, res, bg) {
+    const C = RV_TL_C;
+    const well = el.querySelector('.qrv-well'), dial = el.querySelector('.qrv-dial'), marks = $$('.qrv-mark', el);
+    const pi = ROLES.indexOf(r.primary), si = ROLES.indexOf(r.secondary);
+    tl(c, bg, [[C.bg, { opacity: 0 }, EASE_OUT], [C.bg + 180, { opacity: 1 }], [C.out, { opacity: 1 }, EASE_IN], [C.out + C.outDur + 40, { opacity: 0 }]]);
+    tl(c, well, [[C.dial, { opacity: 0, transform: 'scale(0.92)' }, EASE_OUT], [C.dial + 300, { opacity: 1, transform: 'scale(1)' }]]);
+    tl(c, dial, [[C.dial + 40, { opacity: 0 }, EASE_OUT], [C.dial + 300, { opacity: 1 }]]);
+    tl(c, el.querySelector('.qrv-emblem'), [[260, { opacity: 0 }, EASE_OUT], [500, { opacity: 0.3 }], [C.converge + 100, { opacity: 0.3 }, EASE_IN], [C.seal, { opacity: 0 }]]);
+    tl(c, el.querySelector('.qrv-index'), [[C.index, { opacity: 0, transform: 'translateY(-4px)' }, EASE_OUT], [C.index + 200, { opacity: 1, transform: 'translateY(0px)' }]]);
+    /* 2230–2410 金印落下（ease-in，越蓋越快）、2410–2490 回彈 */
+    tl(c, el.querySelector('.qrv-seal'), [[C.seal, { opacity: 0, transform: 'rotate(-14deg) scale(1.45)', filter: 'blur(6px)' }, EASE_IN], [C.lock, { opacity: 1, transform: 'rotate(-14deg) scale(0.97)', filter: 'blur(0px)' }, EASE_OUT], [C.lock + 80, { opacity: 1, transform: 'rotate(-14deg) scale(1)', filter: 'blur(0px)' }]]);
+    tl(c, el.querySelector('.qrv-shock'), [[C.dial + 40, { opacity: 0, transform: 'scale(1)' }, EASE_OUT], [C.dial + 300, { opacity: 0.9, transform: 'scale(1)' }], [C.lock, { opacity: 0.9, transform: 'scale(1)' }, EASE_OUT], [C.lock + 340, { opacity: 0, transform: 'scale(1.45)' }]]);
+    tl(c, el.querySelector('.qrv-sheen'), [[C.lock, { transform: 'translateX(-140%) skewX(-18deg)' }, 'cubic-bezier(.3,0,.2,1)'], [C.lock + 380, { transform: 'translateX(330%) skewX(-18deg)' }]]);
+    /* 2710–2850 整組縮至 0.88 淡出（用 scale 屬性，與矮螢幕的 0.86 外層縮放相乘） */
+    tl(c, el.querySelector('.qrv-stack'), [[C.out, { opacity: 1, scale: '1' }, EASE_IN], [C.out + C.outDur, { opacity: 0, scale: '0.88' }]]);
+    /* 結果頁由下分段浮上（錯開 30ms） */
+    $$('.r-kind, .chart-wrap, .r-big, .r-sub, .r-lead, .r-rest', res).forEach((x, i) => riseIn(c, x, C.rest + i * 30, 240, 24));
+    /* 印記：起始排列讓主角色在轉滿 540° 時正好停在 12 點（tick 數與總長固定），副角色不在旁邊時沿凹槽滑到 2 點鐘 */
+    const off = (j) => (j - pi) * 60 + 180;
+    const d2 = (((si - pi) * 60) % 360 + 360) % 360;
+    const slide = d2 === 60 || d2 === 300 ? 0 : 60 - d2;
+    const eo3 = (u) => 1 - (1 - u) ** 3, ei3 = (u) => u ** 3;
+    const pose = c.pose = (t) => {
+      const th = spinAt(t);
+      marks.forEach((m, j) => {
+        const ea = eo3(clamp01((t - (C.marks + j * 40)) / 200));
+        let ang = off(j) + th, rr = 131, op = ea, sc = 0.6 + 0.4 * ea, lit = 0;
+        const nrm = ((ang % 360) + 360) % 360, dist = Math.min(nrm, 360 - nrm);
+        if (t < C.converge) lit = Math.max(0, 1 - dist / 16);
+        if (j === pi) {
+          if (t >= C.spin + C.spinDur - 60) lit = 1;
+          const u = ei3(clamp01((t - (C.converge + 100)) / 250));
+          rr = 131 * (1 - u); sc = 1 + 0.5 * u; op = 1 - clamp01((t - (C.seal + 80)) / 100);
+        } else if (j === si) {
+          const u = eo3(clamp01((t - C.converge) / 250));
+          ang += slide * u; op = ea * (1 - 0.58 * u); sc = 1 - 0.1 * u;
+        } else {
+          const u = ei3(clamp01((t - C.converge) / 260));
+          rr = 131 - 91 * u; op = ea * (1 - u); sc = (0.6 + 0.4 * ea) * (1 - 0.4 * u);
+        }
+        const rad = (ang * Math.PI) / 180;
+        m.style.transform = `translate(${(rr * Math.sin(rad)).toFixed(2)}px,${(-rr * Math.cos(rad)).toFixed(2)}px) scale(${sc.toFixed(3)})`;
+        m.style.opacity = op.toFixed(3);
+        m.style.setProperty('--lit', lit.toFixed(3));
+      });
+    };
+    el._pose = pose;
+    pose(0);
+    const loop = () => { if (rv !== c || c.skipped) return; const e = performance.now() - c.t0; pose(e); if (e < C.out + C.outDur) c.raf = requestAnimationFrame(loop); };
+    c.raf = requestAnimationFrame(loop);
+    later(c, C.done, () => rvEnd(c));
+  }
+
+  /** 結果頁上的揭曉動畫跑完後拆掉（回到自然樣式，不留 fill） */
+  function rvRelease(c) {
+    c.anims.forEach((a) => { const t = a.effect && a.effect.target; if (t && c.res && c.res.contains(t)) a.finished.then(() => a.cancel(), () => {}); });
+  }
+  /** 揭曉結束：移除揭曉層、恢復可操作、焦點到 .r-big、繪製結果卡 */
+  function rvEnd(c) {
+    if (rv !== c) return;
+    rv = null;
+    c.timers.forEach(clearTimeout); cancelAnimationFrame(c.raf);
+    c.el.remove();
+    if (c.old) c.old.remove();
+    rvRelease(c);
+    setInert(shell, false);
+    const h = c.res.querySelector('.r-big');
+    if (h) h.focus({ preventScroll: true });
+    if (c.paint) c.paint(c.res);
+  }
+  /** 略過：揭曉子音軌淡出、揭曉層 150ms 淡出，結果頁以快速版本出現（說明與分項卡 200ms 淡入） */
+  function rvSkip() {
+    const c = rv;
+    if (!c || c.skipped) return;
+    const e = performance.now() - c.t0;
+    if (e < RV_GUARD) return;                             /* 作答那一下的連點不算略過 */
+    c.skipped = true;
+    c.timers.forEach(clearTimeout); c.timers = [];
+    cancelAnimationFrame(c.raf);
+    hushRv();
+    track('quiz.reveal_skip', 'view', { kind: c.kind });
+    c.el.style.pointerEvents = 'none';
+    c.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: RV_SKIP_OUT, easing: EASE_IN, fill: 'forwards' });
+    if (c.old) c.old.remove();
+    c.anims.forEach((a) => { const t = a.effect && a.effect.target; if (t && c.res.contains(t)) a.cancel(); });
+    c.anims = c.anims.filter((a) => { const t = a.effect && a.effect.target; return !(t && c.res.contains(t)); });
+    $$('.r-sub, .r-lead, .r-rest', c.res).forEach((x) => c.anims.push(x.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out', fill: 'backwards' })));
+    later(c, e + RV_SKIP_OUT, () => rvEnd(c));
+  }
+  /** 關閉測驗或重畫準備頁：直接拆掉揭曉層（不留聲音） */
+  function rvCancel() {
+    const c = rv;
+    if (!c) return;
+    rv = null;
+    c.timers.forEach(clearTimeout); cancelAnimationFrame(c.raf);
+    hushRv();
+    c.el.remove();
+    if (c.old) c.old.remove();
+    c.anims.forEach((a) => { try { a.cancel(); } catch (e) { /* 已結束 */ } });
+    setInert(shell, false);
   }
 
   function answer(k) {
@@ -605,7 +953,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
 
   /** 開啟測驗：一律先到開始前準備頁（direct＝登入完成或已登入撕票，記錄用）；有未完成作答時按鈕為「繼續」 */
   function open(k, from, { direct = false } = {}) {
-    cdCancel();
+    cdCancel(); rvCancel();
     kind = k; opener = from || document.activeElement;
     title.textContent = QUIZ[k].title;
     box.classList.remove('done');
@@ -630,7 +978,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
   }
   function close() {
     if (box.hidden) return;
-    cdCancel();
+    cdCancel(); rvCancel();
     clearTimeout(advT);
     const s = S(), n = kind ? QUIZ[kind].qs.length : 0;
     track('quiz.close', 'close', { kind, at: idx < 0 ? 0 : Math.min(idx + 1, n), n, answered: s ? s.answers.filter((a) => a != null).length : (box.classList.contains('done') ? n : 0) });
@@ -689,7 +1037,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
 
   box.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); close(); return; }
-    if (cd) { if (e.key === 'Tab') { e.preventDefault(); if (cd.hit) cd.hit.focus(); } return; }   /* 倒數中焦點留在倒數層 */
+    if (cd || rv) { if (e.key === 'Tab') { e.preventDefault(); const h = (cd || rv).hit; if (h) h.focus(); } return; }   /* 倒數／揭曉中焦點留在該層 */
     if (e.key === 'Tab') {                            /* 焦點留在覆蓋層內 */
       const f = $$('button:not([disabled]),a[href],[tabindex="0"],[tabindex="-1"].r-big', box).filter((x) => x.offsetParent !== null && !x.closest('.out') && !x.closest('[hidden]') && x.tabIndex >= 0);
       if (!f.length) return;
@@ -720,5 +1068,5 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
 
   $$('[data-quiz]').forEach((b) => b.addEventListener('click', () => open(b.dataset.quiz, b)));
   paintLast();
-  return { open, close, answer, next, prev, skip: cdSkip, state: () => ({ kind, idx, cd: !!cd }) };
+  return { open, close, answer, next, prev, skip: cdSkip, skipReveal: rvSkip, state: () => ({ kind, idx, cd: !!cd, rv: !!rv }) };
 }

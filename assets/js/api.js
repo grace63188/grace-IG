@@ -2,7 +2,7 @@
    - 全部 POST 到 gas，Content-Type: text/plain;charset=utf-8（避免 CORS 預檢），redirect: follow，不帶 cookie
    - body：{ op, did, vt?, ts, data }；回應 {ok:true,data} ／ {ok:false,error:{code,msg}}
    - 本檔是前台唯一知道 op 與欄位名稱的地方 */
-import { config } from './config.js?v=20261024b';
+import { config } from './config.js?v=20261024c';
 
 let ident = () => ({ did: '', vt: '' });
 /** 由 track.js（did）與 auth.js（vt）提供目前身分 */

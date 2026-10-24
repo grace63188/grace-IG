@@ -103,5 +103,8 @@ test('畫面顯示送 view（不算點擊）：卡片／測驗開關、登入中
   assert.deepEqual(wire('consult.group.very_long_group_identifier.open', 'toggle'), { n: 'view', k: 'consult.group', v: 'open' });
   assert.deepEqual(wire('consult.group.x.close', 'toggle'), { n: 'view', k: 'consult.group', v: 'close' });
   assert.deepEqual(wire('auth.google.blocked', 'view', {}), { n: 'login_fail', k: 'google', v: 'webview' });   /* 仍是 login_fail */
+  assert.deepEqual(wire('quiz.reveal', 'view', { kind: 'career' }), { n: 'view', k: 'quiz.reveal', v: 'career' });   /* 結果揭曉 */
+  assert.deepEqual(wire('quiz.reveal_skip', 'view', { kind: 'ability' }), { n: 'view', k: 'quiz.reveal_skip', v: 'ability' });   /* 略過揭曉 */
+  for (const w of [wire('quiz.reveal', 'view', { kind: 'ability' }), wire('quiz.reveal_skip', 'view', { kind: 'career' })]) assert.ok(valid(w), JSON.stringify(w));
   for (const w of [wire('rite.open', 'view', {}), wire('quiz.close', 'close', {}), wire('consult.group.a.open', 'toggle')]) assert.ok(valid(w), JSON.stringify(w));
 });

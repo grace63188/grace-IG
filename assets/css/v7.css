@@ -409,3 +409,104 @@
   .pass-body,.socket,.qcd-well{border:1px solid CanvasText}
   .qcd-arc .sweep{stroke:Highlight}
 }
+
+/* =========================================================
+   測驗：結果揭曉儀式（qrv＝quiz reveal；.cd 為直播小圓點、.qcd 為倒數，均不沿用；類名與 keyframes 都不含 "ad"）
+   只沿用既有 token：--clay、--ink*、--champagne*、--obs-*、--bead-*、--dn、--ease-*
+   時間軸由 quiz.js（RV_TL／RV_TL_C）以 Web Animations 排程；動作只走 transform／opacity／filter（SVG 線段另用 stroke-dashoffset 畫入）
+   減少動態走 .qrv.rm（「結果出爐」0.6s 淡入淡出）
+   ========================================================= */
+/* ---------- 揭曉層：整層是一顆「略過」按鈕（沿用 .qcd 結構） ---------- */
+.qrv{position:fixed;inset:0;z-index:10;overscroll-behavior:contain}
+.qrv-bg{position:absolute;inset:0;background:radial-gradient(120% 78% at 50% 44%,#F0F0EE 0%,#E7E7E5 44%,#DADAD7 100%);background-color:var(--clay)}
+.qrv-hit{position:absolute;inset:0;display:grid;place-items:center;width:100%;padding:0 16px;border:0;background:none;cursor:pointer;color:var(--ink);font-family:var(--cjk);
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.qrv-hit:focus{outline:none}
+.qrv-hit:focus-visible .qrv-dial{box-shadow:var(--obs-rim),var(--obs-lift),0 0 0 3px var(--clay),0 0 0 5px var(--ink-2)}
+.qrv-stack{display:flex;flex-direction:column;align-items:center;width:100%;max-width:360px;transform-origin:50% 46%}
+.qrv-stack > *{flex:none}
+.qrv-kind{font-size:13px;font-weight:500;letter-spacing:.32em;text-indent:.32em;color:var(--ink-3);margin-bottom:14px}
+
+/* 狀態句：三句疊在同一格，依序淡入淡出（裝飾，aria-hidden；報讀走 role=status） */
+.qrv-line{display:grid;margin-top:18px;min-height:26px}
+.qrv-line span{grid-area:1/1;font-size:16px;font-weight:500;letter-spacing:.16em;padding-left:.16em;color:var(--ink-2);opacity:0}
+.qrv-skip{margin-top:22px;font-size:12.5px;letter-spacing:.12em;color:var(--mute)}
+
+/* ---------- 共用：黑曜石錶面（同 .qcd-dial 的材質） ---------- */
+.qrv-dial{position:absolute;isolation:isolate;overflow:hidden;border-radius:50%;
+  background:var(--obs-glow),var(--obs-flow),var(--obs-body);background-color:#14151B;box-shadow:var(--obs-rim),var(--obs-lift)}
+.qrv-dial::before{content:"";position:absolute;left:16%;right:16%;top:5%;height:42%;z-index:-1;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0))}
+.qrv-sheen{position:absolute;top:-25%;bottom:-25%;left:0;width:42%;pointer-events:none;transform:translateX(-140%) skewX(-18deg);
+  background:linear-gradient(100deg,rgba(255,255,255,0),rgba(226,203,154,.22) 40%,rgba(255,255,255,.45) 50%,rgba(255,255,255,0))}
+.qrv-shock{position:absolute;border-radius:50%;pointer-events:none;opacity:0;
+  border:1.5px solid rgba(226,203,154,.95);box-shadow:0 0 14px 2px rgba(226,203,154,.5),inset 0 0 10px rgba(255,255,255,.7)}
+
+/* =========================================================
+   能力健檢：七軸金線生長成雷達，落定後化成結果頁的雷達
+   幾何與 quiz.js chartSvg 完全相同（viewBox 360×340、圓心 180,170、R=104、標籤 R+22），
+   所以最後一步只需平移，不需縮放
+   ========================================================= */
+.qrv-stage{position:relative;width:100%;aspect-ratio:360/340}
+.qrv-stage > .qrv-dial,.qrv-stage > .qrv-shock{left:18.3333%;top:16.4706%;width:63.3333%;height:67.0588%}   /* 錶面半徑 114，圓心＝雷達圓心 */
+.qrv-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.qrv-grid polygon,.qrv-grid line{fill:none;stroke:rgba(226,203,154,.2);stroke-width:1}
+.qrv-spoke{stroke:#E2CB9A;stroke-width:1.6;stroke-linecap:round;stroke-dasharray:1 1;stroke-dashoffset:1;opacity:.9}
+.qrv-edge{stroke:#E2CB9A;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:1 1;stroke-dashoffset:1}
+.qrv-glow{filter:drop-shadow(0 0 3px rgba(226,203,154,.75))}
+.qrv-fill{fill:rgba(226,203,154,.2);stroke:none;opacity:0}
+.qrv-tip{fill:url(#qrv-pearl);transform-box:fill-box;transform-origin:center;opacity:0}
+.qrv-dot{fill:#14151B;opacity:0}
+.qrv-label{font-size:12.5px;font-weight:500;fill:var(--ink-3);font-family:var(--cjk);opacity:0}
+/* 階段名：與結果頁 .r-big 同字級，交棒時只位移 */
+.qrv-word{margin-top:2px;font-size:44px;font-weight:500;letter-spacing:.14em;line-height:1.15;padding-left:.14em;color:var(--ink)}
+.qrv-word span{display:inline-block;opacity:0}
+
+/* =========================================================
+   職涯定位：六枚角色印記繞錶圈轉動、減速、收攏；主角色以金印落定，副角色在旁變暗
+   錶圈 292／錶面 232，與倒數 .qcd-well／.qcd-dial 同尺寸
+   ========================================================= */
+.qrv-well{position:relative;margin-top:14px;width:292px;height:292px;border-radius:50%;box-shadow:var(--dn)}
+.qrv-well > .qrv-dial,.qrv-well > .qrv-shock{left:30px;top:30px;width:232px;height:232px}
+.qrv-well > .qrv-dial{display:grid;place-items:center}
+/* 12 點刻度：香檳珍珠（倒數的弧頭珍珠停在這裡） */
+.qrv-index{position:absolute;left:50%;top:-15px;width:10px;height:10px;margin-left:-5px;border-radius:50%;
+  background:radial-gradient(circle at 40% 30%,#F7E9C8,#D7BC84 60%,#A9874A);box-shadow:0 0 0 3px rgba(226,203,154,.2),0 1px 2px rgba(80,60,20,.35)}
+/* 錶面中央：浮雕校徽（轉動期間），落印前淡出 */
+.qrv-emblem{grid-area:1/1;width:76px;height:auto;opacity:0;filter:brightness(1.35) contrast(.9)}
+/* 角色印記：黑曜石小珠＋金色代碼字母，在錶圈凹槽中轉動 */
+.qrv-marks{position:absolute;inset:0;pointer-events:none}
+.qrv-mark{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;display:grid;place-items:center;opacity:0;
+  font-family:var(--geo);font-size:12.5px;font-weight:600;letter-spacing:0;color:var(--obs-gold);
+  background:var(--bead-body);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(150,164,220,.35),0 3px 6px -2px rgba(12,12,18,.5)}
+.qrv-mark::after{content:"";position:absolute;inset:-4px;border-radius:50%;opacity:var(--lit,0);pointer-events:none;
+  box-shadow:0 0 0 2px rgba(226,203,154,.85),0 0 14px 3px rgba(226,203,154,.55)}
+/* 金印：同 .tk-stamp 的雙圈語彙，改為黑曜石上的香檳金 */
+.qrv-seal{grid-area:1/1;width:150px;height:150px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:0;
+  color:var(--obs-gold);box-shadow:inset 0 0 0 2px #C9A96A,inset 0 0 0 8px rgba(226,203,154,.12),inset 0 0 0 9.5px rgba(201,169,106,.55);transform:rotate(-14deg)}
+.qrv-seal-code{font-family:var(--geo);font-size:12px;font-weight:600;letter-spacing:.32em;padding-left:.32em;color:var(--obs-mute)}
+.qrv-seal-name{font-size:31px;font-weight:500;letter-spacing:.12em;padding-left:.12em;line-height:1.2;color:var(--obs-gold)}
+.qrv-seal-sub{font-size:12px;letter-spacing:.14em;color:var(--obs-mute);opacity:.72}
+
+/* ---------- 減少動態：霧面底上「結果出爐」淡入淡出 0.6s ---------- */
+.qrv.rm .qrv-hit{place-items:center}
+.qrv-rm-word{font-size:24px;font-weight:500;letter-spacing:.3em;padding-left:.3em;color:var(--ink)}
+
+@media (min-width:768px){
+  .qrv-kind{font-size:13.5px;margin-bottom:18px}
+  .qrv-line span{font-size:17px}
+  .qrv-word{font-size:52px}
+}
+@media (max-width:359px){
+  .qrv-word{font-size:38px;letter-spacing:.1em;padding-left:.1em}
+}
+@media (max-height:640px){
+  .qrv-kind{margin-bottom:6px}
+  .qrv-line{margin-top:10px}
+  .qrv-skip{margin-top:12px}
+  .qrv-stack{transform:scale(.86)}
+}
+@media (forced-colors:active){
+  .qrv-dial,.qrv-well{border:1px solid CanvasText}
+  .qrv-edge,.qrv-spoke{stroke:Highlight}
+  .qrv-sheen,.qrv-shock{display:none}
+}

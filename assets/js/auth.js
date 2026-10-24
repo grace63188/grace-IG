@@ -10,9 +10,9 @@
    - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state'
    - LINE 返回的換 token（auth.line）實測要 3–10 秒（Apps Script 冷啟動）：pendingLine() 先同步讀出所選測驗種類，
      讓 gate 立刻顯示「登入中」的儀式卡，不讓訪客對著首頁等；auth.line／auth.google 逾時放寬到 25 秒 */
-import { config } from './config.js?v=20261024b';
-import { post } from './api.js?v=20261024b';
-import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261024b';
+import { config } from './config.js?v=20261024c';
+import { post } from './api.js?v=20261024c';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261024c';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';

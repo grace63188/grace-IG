@@ -164,3 +164,35 @@ test('localStorage 丟例外或內容損毀時，讀取回傳空、不中斷', a
     if (desc) Object.defineProperty(globalThis, 'localStorage', desc); else delete globalThis.localStorage;
   }
 });
+
+test('結果揭曉時間軸：能力健檢 3000ms 交棒、職涯定位 3150ms；狀態句預設字句', async () => {
+  const Q = await import('../../assets/js/quiz.js');
+  assert.equal(Q.RV_TL.done, 3000); assert.equal(Q.RV_TL.end, 3190); assert.equal(Q.RV_TL.lock, 2300); assert.equal(Q.RV_TL.morph + Q.RV_TL.morphDur, Q.RV_TL.done);
+  assert.equal(Q.RV_TL.axis0 + 6 * Q.RV_TL.step + Q.RV_TL.tick, 2180);                 /* 最後一聲 tick */
+  assert.equal(Q.RV_TL_C.done, 3150); assert.equal(Q.RV_TL_C.lock, 2410); assert.equal(Q.RV_TL_C.spin + Q.RV_TL_C.spinDur, 1950);
+  assert.deepEqual([Q.RV_RM.out, Q.RV_GUARD, Q.RV_SKIP_OUT], [600, 220, 150]);
+  assert.deepEqual(Q.RV_LINES.ability, ['整理妳的選擇', '對照七項能力', '妳的結果出爐了']);
+  assert.deepEqual(Q.RV_LINES.career, ['整理妳的選擇', '對照六種角色', '妳的角色出爐了']);
+  for (const l of [...Q.RV_LINES.ability, ...Q.RV_LINES.career]) { assert.ok([...l].length <= 8, l); assert.doesNotMatch(l, /分析|運算|AI/); }
+});
+
+test('職涯定位錶圈：9 聲 tick＝轉動每經過 60°，與規格 952…1950 相差 ≤2ms，先密後疏', async () => {
+  const Q = await import('../../assets/js/quiz.js');
+  const T = Q.RV_TICKS_C, spec = [952, 1042, 1112, 1176, 1242, 1317, 1411, 1545, 1950];
+  assert.equal(T.length, 9);
+  T.forEach((t, i) => assert.ok(Math.abs(t - spec[i]) <= 2, `${t} vs ${spec[i]}`));
+  T.forEach((t, i) => assert.ok(Math.abs(Q.spinAt(t) - 60 * (i + 1)) < 0.5, `${i}`));
+  const gaps = T.slice(1).map((t, i) => t - T[i]);
+  assert.ok(gaps.slice(3).every((g, i) => g >= gaps[i + 2]), String(gaps));           /* 中段之後間隔遞增（減速） */
+  assert.ok(Q.spinAt(0) < 1e-9); assert.equal(Math.round(Q.spinAt(5000)), 540);
+});
+
+test('結果揭曉類名與 keyframes 都以 qrv- 開頭、不含 "ad"', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../assets/css/v7.css', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../../assets/js/quiz.js', import.meta.url), 'utf8');
+  const names = new Set([...css.matchAll(/\.(qrv[\w-]*)/g), ...js.matchAll(/\b(qrv[\w-]*)/g)].map((m) => m[1]));
+  assert.ok(names.size >= 30, String(names.size));
+  for (const n of names) assert.doesNotMatch(n, /ad/, n);
+  assert.doesNotMatch(css.slice(css.indexOf('結果揭曉儀式')), /@keyframes/);            /* 揭曉不用 CSS keyframes（Web Animations 排程） */
+});

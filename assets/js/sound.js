@@ -6,6 +6,7 @@
    - 衰減一律指數曲線；一般回饋 ≤0.3s，只有開場與揭曉兩個「主角時刻」允許較長的尾音
    - 開場音效走獨立子音軌，快轉或略過時整組在約 60ms 內淡出（hushIntro）；whoosh／tick 帶聲像（StereoPanner，不支援時置中）
    - 測驗倒數（cd*）走另一條子音軌：按「開始」時一次排程，略過或關閉時約 40ms 淡出，尚未發聲的節點直接取消（hushCd）
+   - 結果揭曉（rv*）走第三條子音軌：最後一題作答後一次排程，略過或關閉時同樣以 12ms 時間常數淡出、未發聲的節點取消（hushRv）
    - 震動：navigator.vibrate（iOS 無此 API 即略過）；與音效一起觸發，靜音不影響震動 */
 
 export const SND_KEY = 'grace.snd.v1';
@@ -13,7 +14,7 @@ const MASTER = 0.22;
 const WET = 0.06;                                   /* 預設殘響送出量：只給一點空間感，讓整組音效像在同一個房間 */
 
 let ctx = null, master = null, verbIn = null, noiseBuf = null, unlocked = false;
-let introDry = null, introWet = null, cdB = null;
+let introDry = null, introWet = null, cdB = null, rvB = null;
 let muted = false;
 try { muted = localStorage.getItem(SND_KEY) === 'off'; } catch (e) { /* 預設開啟 */ }
 const subs = new Set();
@@ -136,6 +137,26 @@ export function hushCd() {
   return true;
 }
 
+/* 揭曉子音軌：同倒數的做法，記下所有來源節點 */
+function rvBus() {
+  if (!rvB) {
+    const dry = ctx.createGain(), wet = ctx.createGain();
+    dry.connect(master); wet.connect(verbIn);
+    rvB = { dry, wet, srcs: [] };
+  }
+  return rvB;
+}
+/** 揭曉被略過或測驗關閉：揭曉子音軌以 12ms 時間常數淡出，排定在之後的聲音全部取消 */
+export function hushRv() {
+  if (!ctx || !rvB) return false;
+  const t = ctx.currentTime, b = rvB;
+  rvB = null;
+  [b.dry, b.wet].forEach((g) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.setTargetAtTime(0, t, 0.012); });
+  b.srcs.forEach((s) => { try { s.stop(t + 0.08); } catch (e) { /* 已停止 */ } });
+  setTimeout(() => { try { b.dry.disconnect(); b.wet.disconnect(); } catch (e) { /* 已釋放 */ } }, 400);
+  return true;
+}
+
 /* ---------- 合成積木 ---------- */
 const EPS = 0.0001;
 function env(g, t, peak, a, d) {
@@ -214,6 +235,10 @@ export const LAND_HZ = [329.63, 369.99, 415.30, 493.88, 554.37, 659.25];
 /* 測驗倒數：3／2／1 取 E 大調五聲音階上行 G#5→B5→C#6，收束落在主音 E6 */
 export const CD_HZ = [830.61, 987.77, 1108.73];
 export const CD_RESOLVE_HZ = 1318.51;
+/* 結果揭曉：能力健檢七聲 E 大調五聲音階上行 E5→F#6；職涯定位九聲在 G#5／B5／C#6 之間循環，停定那聲落在主音 E6 */
+export const RV_HZ = [659.25, 739.99, 830.61, 987.77, 1108.73, 1318.51, 1479.98];
+export const RV_SPIN_HZ = [830.61, 987.77, 1108.73];
+export const RV_LAND_HZ = 1318.51;
 
 /* ---------- 音效表（依分鏡） ---------- */
 const FX = {
@@ -325,6 +350,71 @@ const FX = {
     tone(t + 0.03, { f: 987.77, peak: 0.05, a: 0.005, d: 0.14, wet: 0.12, out: o });
   },
 
+  /* ===== 結果揭曉（走揭曉子音軌；時間全部由 quiz.js 以同一個音訊時鐘基準 a0 排程） ===== */
+  /* 襯底：E3＋B3 正弦，各配一個 ±5 cents 微失諧副聲部；低通 400→1800Hz 隨揭曉慢慢打開；
+     指數漸強到 dur（落定前 10ms，peak 0.05），之後 0.7s 指數收尾交給和弦接手，不硬切 */
+  rvPad(t, o, { dur = 2.14 } = {}) {
+    const lp = ctx.createBiquadFilter(), g = ctx.createGain(), peakAt = t + dur;
+    lp.type = 'lowpass'; lp.Q.value = 0.5;
+    lp.frequency.setValueAtTime(400, t); lp.frequency.exponentialRampToValueAtTime(1800, peakAt);
+    g.gain.setValueAtTime(EPS, t);
+    g.gain.exponentialRampToValueAtTime(0.05, peakAt);
+    g.gain.exponentialRampToValueAtTime(EPS, peakAt + 0.7);
+    [[164.81, 0, 1], [164.81, 5, 0.6], [246.94, 0, 0.7], [246.94, -5, 0.45]].forEach(([f, det, lv]) => {
+      const osc = ctx.createOscillator(), v = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(f, t); osc.detune.value = det; v.gain.value = lv;
+      osc.connect(v); v.connect(lp);
+      osc.start(t); osc.stop(peakAt + 0.76);
+      o.srcs.push(osc);
+    });
+    lp.connect(g); send(g, o, 0.3);
+  },
+  /* 輕響：倒數 tick 的毛氈槌玻璃音色降一階——peak 0.05、尾音 0.18s、殘響只留一點；gain 依轉速縮放（職涯定位） */
+  rvTick(t, o, { f = RV_HZ[0], gain = 1, i = 0 } = {}) {
+    const k = Math.max(0.2, Math.min(1, gain)), L = panner(t, 0.24, -0.18, -0.18, o), R = panner(t, 0.24, 0.18, 0.18, o);
+    tone(t, { f, peak: 0.05 * k, a: 0.0025, d: 0.18, detune: -3, wet: 0.05, out: L });
+    tone(t, { f, peak: 0.05 * k, a: 0.0025, d: 0.18, detune: 3, wet: 0.05, out: R });
+    tone(t, { f, type: 'triangle', peak: 0.02 * k, a: 0.002, d: 0.08, wet: 0, out: o });
+    tone(t, { f: f * 2, peak: 0.011 * k, a: 0.0015, d: 0.06, wet: 0.03, out: o });
+    tone(t, { f: f * 3.98, peak: 0.0035 * k, a: 0.001, d: 0.025, wet: 0, out: o });
+    noise(t, { dur: 0.014, peak: 0.04 * k, a: 0.0008, type: 'lowpass', f: 2200, q: 0.4, wet: 0, out: o, at: 0.15 + (i % 9) * 0.03 });
+    noise(t + 0.004, { dur: 0.09, peak: 0.008 * k, a: 0.005, type: 'highpass', f: 6500, q: 0.4, wet: 0.06, out: o, at: 0.5 + (i % 9) * 0.04 });
+  },
+  /* 落定：E 大和弦輕撥（E3 B3 E4 G#4 B4，14ms 錯開，1.1s）＋每聲 ±5 cents 三角波副聲部；
+     E6 非諧和泛音 shimmer（×1、×2.76、×5.4，副聲部 ±7 cents）；高通閃粒一抹；全部指數衰減。stamp＝職涯定位的金印悶響同時落下 */
+  rvLock(t, o, { stamp = false } = {}) {
+    [[164.81, 0.07], [246.94, 0.06], [329.63, 0.055], [415.30, 0.042], [493.88, 0.03]].forEach(([f, p], i) => {
+      const s = t + i * 0.014;
+      tone(s, { f, peak: p, a: 0.012, d: 1.1 - i * 0.06, wet: 0.3, out: o });
+      tone(s, { f, type: 'triangle', peak: p * 0.3, a: 0.016, d: 0.8 - i * 0.05, detune: i % 2 ? 5 : -5, wet: 0.3, out: o });
+    });
+    const L = panner(t, 1, -0.2, -0.2, o), R = panner(t, 1, 0.2, 0.2, o);
+    [[1, 0.04, 0.9], [2.76, 0.012, 0.45], [5.4, 0.004, 0.24]].forEach(([r, p, d]) => {
+      tone(t, { f: RV_LAND_HZ * r, peak: p, a: 0.003, d, detune: -7, wet: 0.35, out: L });
+      tone(t + 0.006, { f: RV_LAND_HZ * r, peak: p * 0.7, a: 0.004, d: d * 0.9, detune: 7, wet: 0.35, out: R });
+    });
+    noise(t + 0.01, { dur: 0.32, peak: 0.022, a: 0.005, type: 'highpass', f: 7000, f2: 4200, q: 0.5, wet: 0.3, out: o, at: 0.62 });
+    if (stamp) {
+      tone(t, { f: 118, f2: 72, peak: 0.6, a: 0.003, d: 0.11, wet: 0.08, out: o });
+      tone(t, { f: 236, f2: 150, peak: 0.07, a: 0.003, d: 0.05, wet: 0, out: o });
+      noise(t, { dur: 0.06, peak: 0.12, a: 0.002, type: 'lowpass', f: 420, q: 0.5, wet: 0, out: o, at: 0.3 });
+    }
+  },
+  /* 交棒：柔和氣流（cdWhoosh 低 6dB），帶通 600→1800Hz 上掃、0.26s；聲像置中，以頻率由低往高帶出「往上浮起」 */
+  rvRise(t, o) {
+    noise(t, { dur: 0.26, peak: 0.0275, a: 0.11, type: 'bandpass', f: 600, f2: 1800, q: 0.9, wet: 0.08, out: o, at: 0.12 });
+    noise(t, { dur: 0.24, peak: 0.014, a: 0.1, type: 'lowpass', f: 420, f2: 1100, q: 0.4, wet: 0, out: o, at: 0.42 });
+    noise(t + 0.02, { dur: 0.2, peak: 0.005, a: 0.08, type: 'highpass', f: 5000, q: 0.5, wet: 0.1, out: o, at: 0.72 });
+  },
+  /* 減少動態：既有「揭曉」香檳鐘聲（E–G#–B），改走揭曉子音軌，略過或關閉時一起淡出 */
+  rvChime(t, o) {
+    [[659.25, 0], [830.61, 0.12], [987.77, 0.24]].forEach(([f, dt]) => {
+      tone(t + dt, { f, peak: 0.16, a: 0.006, d: 0.95 - dt, wet: 0.2, out: o });
+      tone(t + dt, { f: f * 2, peak: 0.028, a: 0.004, d: 0.4, out: o });
+      tone(t + dt, { f: f * 3.01, peak: 0.01, a: 0.003, d: 0.22, wet: 0, out: o });
+    });
+  },
+
   /* ===== 開場（走開場子音軌） ===== */
   /* 減少動態路徑的 Enter：深沉觸發 0.35s・98→66Hz 下滑正弦＋196／294Hz 泛音（小喇叭聽得到）＋毛氈輕叩 */
   introEnter(t, o) {
@@ -392,7 +482,8 @@ const FX = {
 };
 
 /* 震動樣式（Android；iOS 無 API 略過） */
-const BUZZ = { cdTick: 6, cdResolve: [10, 40, 10], key: 8, tear: [12, 330, 18], login: [10, 40, 10], pick: 6, reveal: [20, 60, 20, 60, 40], introEnter: 10, introCharge: 6, introImpact: 22 };
+const BUZZ = { rvTick: 6, rvLock: [10, 40, 10], rvChime: [20, 60, 20, 60, 40], cdTick: 6, cdResolve: [10, 40, 10], key: 8, tear: [12, 330, 18], login: [10, 40, 10], pick: 6, reveal: [20, 60, 20, 60, 40], introEnter: 10, introCharge: 6, introImpact: 22 };
+export const buzzOf = (name) => BUZZ[name];
 export function vibrate(p) { try { if (p && navigator.vibrate) navigator.vibrate(p); } catch (e) { /* 不支援 */ } }
 
 /** 音訊時鐘（秒）：開場以同一個基準排程整組音效，避免逐一呼叫時 currentTime 跨過 render quantum 造成數毫秒漂移 */
@@ -406,7 +497,7 @@ export function sfx(name, { delay = 0, at = null, haptic = true, arg } = {}) {
   const c = ensure();
   if (!c) return false;
   try {
-    const out = name.startsWith('intro') ? introBus() : name.startsWith('cd') ? cdBus() : mainBus();
+    const out = name.startsWith('intro') ? introBus() : name.startsWith('cd') ? cdBus() : name.startsWith('rv') ? rvBus() : mainBus();
     FX[name](at != null ? Math.max(at, c.currentTime) : c.currentTime + 0.005 + delay, out, arg);
     return true;
   } catch (e) { return false; }
