@@ -7,23 +7,28 @@
    - 倒數：開始鈕化成錶面、金弧掃描、收束鐘聲，總長 3160ms；點畫面／Enter／空白鍵略過，Esc 關閉；減少動態改為「準備好了」0.6s 淡入淡出
      畫面（Web Animations＋rAF）與聲音（sound.js cd*）都以按下那一刻為基準一次排程，聲音取同一個音訊時鐘讀數，不逐一漂移
    - 結果頁：LINE 登入者在頁尾附「加入 @52grace」次鍵
+   - 下一步（結果分析之後，文案見 nextstep.js）：依結果的銜接句＋定位說明 → 正式入學主卡（開始入學）→ 傳給官方 LINE（預填結果摘要）
+     → 一對一諮詢列 → 還想多看看（先逛逛／先體驗）→ 已是學姐捷徑；開卡一律「關閉測驗 → onOpen(sheet, tab)」
    - 結果揭曉：最後一題作答後先算好結果、存檔、送出（quiz.result 背景送出，不等網路），再播放揭曉層約 3 秒——
      能力健檢＝七軸金線長成雷達、落定後以 FLIP 平移成結果頁的雷達；職涯定位＝六枚角色印記繞錶圈轉動、收攏、金印落定、結果頁分段浮上
      點畫面／Enter／空白鍵略過（前 220ms 不受理）；Esc 照常關閉測驗；減少動態改為「結果出爐」0.6s 淡入淡出；規格見 mockup_v13/reveal/motion.md
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝rv* 子音軌（同一個音訊時鐘讀數一次排程）；事件：每題作答進度、完成與結果、quiz.reveal／quiz.reveal_skip（view） */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261024c';
-import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261024c';
-import { track } from './track.js?v=20261024c';
-import { submitResult, onResults, session } from './auth.js?v=20261024c';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261024d';
+import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261024d';
+import { track } from './track.js?v=20261024d';
+import { submitResult, onResults, session } from './auth.js?v=20261024d';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261024c';
+} from './quizdata.js?v=20261024d';
+import { NX, OA_URL, bridge, shareUrl } from './nextstep.js?v=20261024d';
 
+export { OA_URL };
 export const STORE_KEY = 'grace.quiz.v1';
 const SIGNIN = 'https://www.graceschool.com.tw/member/signin';
 const NOTE = '本結果為自我探索參考，非正式心理測驗。';
-export const OA_URL = 'https://line.me/R/ti/p/@52grace';
+/* 下一步各去向：sheet＝首頁卡片、tab＝前往上課的分頁 */
+export const NEXT_DEST = { enroll: ['study', 'academy'], consult: ['consult', ''], browse: ['follow', ''], try: ['study', 'sampler'] };
 export const RITE_LINE = '接下來所有作答都沒有標準答案，請誠實作答！';
 
 /* 倒數時間軸（ms，按下「開始」＝0）；規格見 mockup_v12/ready/motion.md */
@@ -232,7 +237,7 @@ export function drawCard(canvas, kind, r) {
 }
 
 /* ---------- 主體 ---------- */
-export function initQuiz({ onEnroll, onSwitch } = {}) {
+export function initQuiz({ onOpen, onSwitch } = {}) {
   const box = $('#quiz');
   if (!box) return null;
   const page = $('.page');
@@ -308,22 +313,30 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
 
   const listHtml = (arr) => `<ul class="named">${arr.map((p) => `<li><b>${esc(p.k)}</b><span>${esc(p.v)}</span></li>`).join('')}</ul>`;
 
-  function endingHtml() {
-    return `<section class="ending" aria-labelledby="qz-end">
+  /* 下一步：銜接句 → 正式入學主卡 → 傳給官方 LINE → 一對一諮詢 → 還想多看看 → 已是學姐 */
+  const ic = (id) => `<svg class="i" aria-hidden="true" focusable="false"><use href="#${id}"/></svg>`;
+  function endingHtml(r) {
+    const b = bridge(kind, r), E = NX.enroll, C = NX.consult, SH = NX.share;
+    const b1 = b.hi ? esc(b.text).replace(esc(b.hi), `<b>${esc(b.hi)}</b>`) : esc(b.text);
+    return `<section class="nx" aria-labelledby="qz-end">
       <h4 id="qz-end">下一步</h4>
-      <div class="toggle seg is-left" role="tablist" aria-label="選擇妳的身分">
-        <i class="lever" aria-hidden="true"></i>
-        <button type="button" role="tab" id="qz-tab-0" aria-controls="qz-pane-0" aria-selected="true" tabindex="0" data-ev="quiz.tab.member">我是學員</button>
-        <button type="button" role="tab" id="qz-tab-1" aria-controls="qz-pane-1" aria-selected="false" tabindex="-1" data-ev="quiz.tab.guest">我還沒入學</button>
+      <div class="nx-bridge"><p class="b1">${b1}</p><p class="b2">${esc(NX.b2)}</p></div>
+      <div class="nx-pick">
+        <div class="nx-top"><span class="nx-ic">${ic(E.icon)}</span><h5 class="nx-name">${esc(E.name)}<span class="lv-tag nx-cond">${esc(E.cond)}</span></h5></div>
+        <p class="nx-lead">${esc(E.lead)}</p>
+        <button class="cta cta-main gl gl-ink" type="button" data-act="go" data-dest="enroll" data-ev="quiz.enroll"><span>${esc(E.btn)}</span><span class="go">${ic('i-arrow')}</span></button>
       </div>
-      <div class="pane" role="tabpanel" id="qz-pane-0" aria-labelledby="qz-tab-0">
-        <p>測驗結果只是起點，最適合妳的進修路徑，就交給校長親自為妳安排。現在到學員後台，進入「闖關挑戰」→「個人進修」提出申請。</p>
-        <a class="cta cta-main gl gl-ink" href="${SIGNIN}" target="_blank" rel="noopener" data-ev="quiz.backend"><span>前往學員後台</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></a>
+      <div class="nx-share">
+        <p class="nx-val">${esc(SH.text)}</p>
+        <button class="cta cta-sub gl gl-clear cta-add" type="button" data-act="share" data-ev="quiz.share_line" data-href="${esc(shareUrl(kind, r, r.at))}"><span class="lbl-l"><span class="lead-ic"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-linef"/></svg></span><span class="lbl">${esc(SH.btn)}</span></span><span class="go">${ic('i-ext')}</span></button>
       </div>
-      <div class="pane" role="tabpanel" id="qz-pane-1" aria-labelledby="qz-tab-1" hidden>
-        <p>想讓校長依照測驗結果安排個人進修課表，第一步是先成為 G.R.A.C.E 學姐。完成註冊和真人驗證，首次儲值 100,000 元開通「打底層」學員資格後，就可以提出申請。</p>
-        <button class="cta cta-main gl gl-ink" type="button" data-act="enroll" data-ev="quiz.enroll"><span>開始入學</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg></span></button>
+      <button class="nx-row gl gl-clear" type="button" data-act="go" data-dest="consult" data-ev="quiz.go.consult"><span class="nx-ic">${ic(C.icon)}</span>
+        <span class="nx-t"><span class="nx-name">${esc(C.name)}<span class="lv-tag nx-cond">${esc(C.cond)}</span></span><span class="nx-cue">${esc(C.cue)}</span></span>
+        <span class="bead mini round">${ic('i-arrow')}</span></button>
+      <div class="nx-light"><p class="nx-lh" id="qz-light">${esc(NX.lightHead)}</p>
+        <div class="nx-lrow" role="group" aria-labelledby="qz-light">${NX.light.map((o) => `<button class="nx-l" type="button" data-act="go" data-dest="${o.id}" data-ev="quiz.go.${o.id}"><span class="nx-li">${ic(o.icon)}</span><span class="nx-t"><span class="nx-ln">${esc(o.name)}</span><span class="nx-cue">${esc(o.cue)}</span></span>${ic('i-arrow')}</button>`).join('')}</div>
       </div>
+      <p class="nx-member"><span class="t">${esc(NX.member.t)}</span><a class="txt-link" href="${SIGNIN}" target="_blank" rel="noopener" data-ev="quiz.backend">${esc(NX.member.link)}${ic('i-ext')}</a></p>
     </section>`;
   }
 
@@ -365,7 +378,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
         <div class="r-rest">
         ${r.allSame ? '' : `<section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>最強能力・${esc(r.top)}</h4><p>${esc(ABILITY_TEXT[r.top].strong)}</p></section>
         <section class="r-sec"><h4><i class="tag" aria-hidden="true"></i>最需補強・${esc(r.low)}</h4><p>${esc(ABILITY_TEXT[r.low].weak)}</p></section>`}
-        ${cardHtml()}${endingHtml()}
+        ${cardHtml()}${endingHtml(r)}
         <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again" data-ev-meta='{"kind":"${kind}"}'><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
         <p class="r-note">${NOTE}</p></div>
         </div>
@@ -385,7 +398,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
       <section class="r-sec"><h4><i class="tag" aria-hidden="true"></i>卡點</h4>${listHtml(P.cons)}</section>
       <section class="r-sec"><h4><i class="tag up" aria-hidden="true"></i>適合方向</h4>${listHtml(P.paths)}</section>
       <section class="r-sec r-second"><h4>副角色・${esc(r.secondary)}</h4><p>${esc(S2.desc)}</p></section>
-      ${cardHtml()}${endingHtml()}
+      ${cardHtml()}${endingHtml(r)}
       <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again" data-ev-meta='{"kind":"${kind}"}'><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
       <p class="r-note">${NOTE}</p></div>
       </div>
@@ -587,6 +600,7 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
       ? { stage: r.stage.name, top: r.top, low: r.low, at: Date.now() }
       : { primary: r.primary, secondary: r.secondary, at: Date.now() };
     saveStore(kind, saved);
+    r.at = saved.at;                                      /* 下一步「傳給官方 LINE」的測驗日期 */
     paintLast();
     track('quiz.complete', 'complete', kind === 'ability'
       ? { kind, result: r.stage.name, top: r.allSame ? '' : r.top, low: r.allSame ? '' : r.low, total: r.total }
@@ -1021,9 +1035,17 @@ export function initQuiz({ onEnroll, onSwitch } = {}) {
     if (act === 'next') { track('quiz.next', 'click', { kind, q: idx + 1 }); return next(); }
     if (act === 'again') { state[kind] = null; box.classList.remove('done'); return showReady(1, 'again'); }
     if (act === 'save') return save(b);
-    if (act === 'enroll') { close(); if (onEnroll) setTimeout(onEnroll, 60); }
+    if (act === 'go') { const d = NEXT_DEST[b.dataset.dest]; if (!d) return; close(); if (onOpen) setTimeout(() => onOpen(d[0], d[1]), 60); return; }
+    if (act === 'share') return openExt(b.dataset.href || OA_URL);
     if (act === 'switch') { const k = kind; close(); if (onSwitch) setTimeout(() => onSwitch(k), 60); }
   });
+
+  /* 外開（新分頁）；被擋時改在本頁開啟（App 內建瀏覽器） */
+  function openExt(url) {
+    let w = null;
+    try { w = window.open(url, '_blank'); } catch (e) { w = null; }
+    if (w) { try { w.opener = null; } catch (e) { /* 忽略 */ } } else location.href = url;
+  }
 
   function selectTab(t) {
     const list = t.closest('[role="tablist"]'), tabs = $$('[role="tab"]', list);

@@ -12,7 +12,7 @@ const CODE = /^[a-z0-9_.-]{1,24}$/;                                   /* out／v
 
 const CLICKS = ['key.quiz', 'key.study', 'key.event', 'key.live', 'key.follow', 'key.consult', 'now.live', 'now.event', 'now.podcast', 'now.ig',
   'foot.line_academy', 'foot.line_sampler', 'foot.reply_time', 'study.tab.academy', 'study.tab.sampler', 'consult.enroll', 'consult.group.open.open',
-  'quiz.start', 'quiz.tab.member', 'quiz.tab.guest', 'quiz.enroll', 'quiz.save', 'quiz.prev', 'quiz.next', 'quiz.close', 'quiz.open',
+  'quiz.start', 'quiz.tab.member', 'quiz.tab.guest', 'quiz.enroll', 'quiz.share_line', 'quiz.go.consult', 'quiz.go.browse', 'quiz.go.try', 'quiz.save', 'quiz.prev', 'quiz.next', 'quiz.close', 'quiz.open',
   'rite.open', 'rite.start', 'rite.switch', 'rite.close', 'live.close', 'who.menu', 'who.switch', 'auth.inapp.open'];
 const LINKS = ['study.academy.site', 'study.sampler.course1', 'study.sampler.group', 'study.sampler.site', 'event.go', 'event.ig', 'live.calendar', 'live.ig',
   'follow.ig_principal', 'follow.ig_official', 'follow.youtube', 'follow.podcast', 'follow.podcast_latest', 'consult.book', 'quiz.backend'];
@@ -27,6 +27,8 @@ test('每個點擊與外連代號都對應到資料中心白名單', () => {
     if (!el.startsWith('foot.')) { assert.equal(w.n, 'out', el); assert.equal(w.k, el, el + '：k＝元素代號'); assert.equal(w.u, 'example.com/a'); }
   }
   assert.deepEqual(wire('study.academy.site', 'link', { href: 'https://www.graceschool.com.tw/?x=1', text: '前往學院官網' }), { n: 'out', k: 'study.academy.site', v: '前往學院官網', u: 'www.graceschool.com.tw/' });
+  assert.deepEqual(wire('quiz.share_line', 'click', {}), { n: 'card', k: 'quiz', v: 'quiz.share_line' });
+  assert.deepEqual(wire('quiz.go.try', 'click', {}), { n: 'card', k: 'quiz', v: 'quiz.go.try' });
   assert.deepEqual(wire('now.ig', 'click', { label: '最新消息公告於校長 IG' }), { n: 'now', k: 'ig', v: '最新消息公告於校長 IG' });
   assert.deepEqual(wire('foot.reply_time', 'link', { href: 'https://line.me/R/ti/p/@52grace' }), { n: 'foot', k: 'reply_time' });
 });

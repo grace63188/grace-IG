@@ -5,15 +5,15 @@
    - PODCAST 無 latest 或標題為空 → 「現在」不顯示該則，追蹤動態只顯示節目
    v7：撕票後未登入者滑出儀式卡（測驗前登入），登入後直接作答、Web Audio 音效、事件追蹤（見 gate.js／sound.js／track.js）
    v8：進站開場儀式（intro.js／intro.css） */
-import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261024c';
-import { initQuiz } from './quiz.js?v=20261024c';
-import { initTickets } from './ticket.js?v=20261024c';
-import { loadConfig } from './config.js?v=20261024c';
-import { initSound, sfx } from './sound.js?v=20261024c';
-import { initTracking, track } from './track.js?v=20261024c';
-import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261024c';
-import { initGate, errText } from './gate.js?v=20261024c';
-import { initIntro } from './intro.js?v=20261024c';
+import { $, $$, now, ts, tpe, pad, fmtDate, fmtHM, safeUrl, reduced, esc, getJSON, fallback, setInert } from './core.js?v=20261024d';
+import { initQuiz } from './quiz.js?v=20261024d';
+import { initTickets } from './ticket.js?v=20261024d';
+import { loadConfig } from './config.js?v=20261024d';
+import { initSound, sfx } from './sound.js?v=20261024d';
+import { initTracking, track } from './track.js?v=20261024d';
+import { resume as resumeAuth, takeGoLogin, pendingLine } from './auth.js?v=20261024d';
+import { initGate, errText } from './gate.js?v=20261024d';
+import { initIntro } from './intro.js?v=20261024d';
 
 const root = document.documentElement;
 const FB = fallback();
@@ -126,6 +126,7 @@ function initSheets() {
 }
 
 /* ---------- 前往上課：分頁 ---------- */
+let studyTab = () => {};                                            /* 前往上課切換分頁：'academy'／'sampler' */
 function initTabs() {
   const tabs = $$('#s-study [role="tab"]');
   const sel = (t, focus) => {
@@ -139,6 +140,7 @@ function initTabs() {
     });
   });
   try { const t = new URLSearchParams(location.search).get('tab'); if (t === 'sampler') sel(tabs[1]); } catch (e) { /* 忽略 */ }
+  studyTab = (k) => { const t = tabs[k === 'sampler' ? 1 : 0]; if (t) sel(t); };
 }
 
 /* ---------- 諮詢項目：可展開清單 ---------- */
@@ -413,7 +415,12 @@ async function start() {
   initTabs();
   initHome();
   let gate = null;
-  const quiz = quizApi = initQuiz({ onEnroll: () => openSheet('study', $('[data-open="study"].k')), onSwitch: (k) => gate && gate.switchAccount(k) });
+  /* 測驗結果頁「下一步」：關閉測驗後開卡（sheet＝卡片、tab＝前往上課的分頁）；焦點回來時落在該卡的入口鍵 */
+  const onOpen = (sheet, tab) => {
+    if (sheet === 'study') studyTab(tab || 'academy');
+    openSheet(sheet, $(`[data-open="${sheet}"].k`));
+  };
+  const quiz = quizApi = initQuiz({ onOpen, onSwitch: (k) => gate && gate.switchAccount(k) });
   /* 撕票 →（未登入：儀式卡登入）→ 開始前準備頁 → 3-2-1 倒數 → 第一題；測驗關閉時焦點回到「開始測驗」鍵 */
   gate = initGate({
     openSheet, closeSheet,

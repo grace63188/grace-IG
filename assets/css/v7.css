@@ -510,3 +510,56 @@
   .qrv-edge,.qrv-spoke{stroke:Highlight}
   .qrv-sheen,.qrv-shock{display:none}
 }
+
+/* ---------- 結果頁「下一步」（確認稿 mockup_v14/journey，主卡說明 A）：銜接句 → 正式入學主卡 → 傳給官方 LINE → 一對一諮詢 → 還想多看看 → 已是學姐 ---------- */
+.nx{display:flex;flex-direction:column;gap:16px;padding:22px 20px 20px;border-radius:28px;background:var(--clay);box-shadow:var(--up)}
+.nx > h4{font-size:15.5px;font-weight:500;letter-spacing:.06em}
+.nx-bridge{display:flex;flex-direction:column;gap:8px;padding:16px 18px;border-radius:20px;box-shadow:var(--dn-sm)}
+.nx-bridge .b1{font-size:15.5px;line-height:1.8;color:var(--ink);text-wrap:pretty}
+.nx-bridge .b1 b{font-weight:500;color:var(--champagne-ink)}
+.nx-bridge .b2{font-size:13px;line-height:1.7;color:var(--ink-3);text-wrap:pretty}
+.nx-ic{width:40px;height:40px;flex:none;border-radius:50%;display:grid;place-items:center;color:var(--ink-2);box-shadow:var(--dn-sm)}
+.nx-ic svg{width:18px;height:18px;stroke-width:1.6}
+.nx-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nx-name{font-size:15.5px;font-weight:500;letter-spacing:.08em;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+.nx-cue{font-size:12.5px;color:var(--ink-3);letter-spacing:.02em}
+.nx-cond{font-size:11.5px;padding:1px 9px;letter-spacing:.02em}
+/* 正式入學：固定主卡（金色細框、黑曜石圖示珠） */
+.nx-pick{display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:24px;background:var(--clay-hi);box-shadow:inset 0 0 0 1.5px rgba(184,151,90,.55),var(--up)}
+.nx-top{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:center;gap:12px}
+.nx-pick .nx-ic{width:44px;height:44px;color:var(--obs-ink);background:var(--bead-body);background-color:#14151B;box-shadow:var(--bead-lift)}
+.nx-pick .nx-name{font-size:17px}
+.nx-lead{font-size:17px;font-weight:500;line-height:1.6;color:var(--ink);letter-spacing:.02em;text-wrap:balance}
+.nx-pick .cta-main{min-height:54px;font-size:15.5px}
+/* 傳給官方 LINE：主卡正下方，說明＋霧面次鍵 */
+.nx-share{display:flex;flex-direction:column;gap:10px;padding:0 2px}
+.nx-val{font-size:14px;line-height:1.75;color:var(--ink-2);text-wrap:pretty}
+.nx-share .cta-add{width:100%}
+/* 一對一諮詢：整列可點 */
+.nx-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;min-height:68px;padding:12px 12px 12px 14px;border-radius:22px;text-align:left;color:var(--ink);font:inherit}
+.nx-row .mini{flex:none}
+/* 還想多看看：凹面輕量格 */
+.nx-light{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.nx-lh{font-size:13px;color:var(--ink-3);letter-spacing:.06em;padding-left:4px}
+.nx-lrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nx-l{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-height:60px;padding:10px 12px;border-radius:18px;background:transparent;border:0;box-shadow:var(--dn-sm);text-align:left;color:var(--ink);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform var(--t-press) ease-out}
+.nx-l:active{transform:scale(.97)}
+.nx-l:focus-visible{outline:2px solid var(--ink-2);outline-offset:2px}
+.nx-l > svg.i{width:14px;height:14px;stroke-width:1.9;color:var(--ink-3)}
+.nx-li{display:grid;place-items:center;color:var(--ink-3)}
+.nx-li svg{width:16px;height:16px;stroke-width:1.6}
+.nx-ln{font-size:14.5px;font-weight:500;letter-spacing:.06em}
+.nx-l .nx-cue{font-size:12px;line-height:1.45;white-space:nowrap}
+@media (hover:hover){ .nx-l:hover{color:var(--ink)} .nx-l:hover > svg.i{color:var(--ink-2)} }
+/* 已是學姐 */
+.nx-member{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 6px;padding-top:2px}
+.nx-member .t{font-size:13px;color:var(--ink-3)}
+.nx-member .txt-link{padding:0 4px;display:inline-flex;align-items:center;gap:5px;color:var(--ink-2)}
+.nx-member .txt-link svg{width:12px;height:12px;stroke-width:1.9}
+@media (max-width:374px){ .nx-lrow{grid-template-columns:1fr} }      /* 兩格並排時說明會被裁切 → 上下排 */
+@media (max-width:359px){
+  .nx{padding:18px 14px 16px}
+  .nx-bridge{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){ .nx-l:active{transform:none} }
+@media (forced-colors:active){ .nx,.nx-pick,.nx-row,.nx-l,.nx-bridge{border:1px solid CanvasText} }
