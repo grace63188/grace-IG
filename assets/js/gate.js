@@ -8,13 +8,16 @@
    - 登入成功（Google 當下、LINE 授權返回）：收起儀式卡，進入測驗的開始前準備頁（入場券＋「開始」→ 3-2-1 倒數 → 第 1 題，見 quiz.js）
    - LINE 授權返回：資料中心換 token 要 3–10 秒，期間先以 hold(kind) 顯示「LINE 登入中」的儀式卡（鈕停用）；
      訪客此時撕票只會重畫同一張登入中卡（不會回到可再按一次登入的卡），完成即收起、進所選測驗的準備頁
+   - 撕票自動跳轉（jump，於撕票的同一個點擊內呼叫）：Android 的 IG／Facebook／Threads 直接以 intent:// 開到 Chrome，
+     LINE 內建（iOS、Android）以 openExternalBrowser=1 開到預設瀏覽器；約 1.5 秒後頁面仍在前景（未 pagehide／blur）
+     才顯示原本的 App 內建瀏覽器卡片（手動鈕不變）；本頁跳轉失敗過一次或網址帶 xj=1（剛跳轉過來）即不再自動跳。iPhone 的 IG／FB／Threads 不跳
    - 已登入回訪：撕票後直接進準備頁
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc } from './core.js?v=20261024e';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl } from './auth.js?v=20261024e';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261024e';
-import { track } from './track.js?v=20261024e';
-import { OA_URL } from './quiz.js?v=20261024e';
+import { $, $$, esc } from './core.js?v=20261029a';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl, autoJumpMode, autoJumpUrl } from './auth.js?v=20261029a';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261029a';
+import { track } from './track.js?v=20261029a';
+import { OA_URL } from './quiz.js?v=20261029a';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最像平常的妳就好';
@@ -155,8 +158,36 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
     track('rite.pending', 'view', { kind, provider: 'line' });
   }
 
+  /* ---------- 撕票自動跳轉 ---------- */
+  let jumping = null;                        /* 跳轉等待中：{ kind, open }，open＝撕票動畫結束時要開的種類 */
+  let jumpFailed = false;                    /* 本頁自動跳轉失敗過：之後撕票直接顯示卡片 */
+  /** 撕票的同一個點擊內呼叫：會顯示 App 內建瀏覽器卡片、且可自動跳轉時，直接導向手機瀏覽器；回傳是否已跳轉 */
+  function jump(k) {
+    if (jumping || jumpFailed || pending || session() || !isInApp()) return false;
+    const mode = autoJumpMode();
+    if (!mode) return false;
+    const jk = KINDS[k] ? k : 'ability', href = autoJumpUrl(mode, jk);
+    if (!href) return false;
+    jumping = { kind: jk, open: '' };
+    track('gate.autojump', 'view', { kind: jk, via: mode });
+    let left = false;
+    const mark = () => { left = true; };
+    const vis = () => { if (document.visibilityState !== 'visible') left = true; };
+    window.addEventListener('pagehide', mark); window.addEventListener('blur', mark); document.addEventListener('visibilitychange', vis);
+    try { location.href = href; } catch (e) { /* 忽略：交給下方的卡片 */ }
+    setTimeout(() => {
+      window.removeEventListener('pagehide', mark); window.removeEventListener('blur', mark); document.removeEventListener('visibilitychange', vis);
+      const j = jumping; jumping = null;
+      if (left || document.visibilityState !== 'visible') return;   /* 已換到瀏覽器 */
+      jumpFailed = true;
+      if (j && j.open) open(j.open);                                 /* 仍在本頁：顯示原本的卡片 */
+    }, STAY_MS);
+    return true;
+  }
+
   /** 撕票後呼叫：已登入直接進準備頁；未登入換成儀式卡（登入）；登入中則維持登入中卡（換成這張票的種類） */
   function open(k, { msg } = {}) {
+    if (jumping && !msg) { jumping.open = KINDS[k] ? k : 'ability'; return; }   /* 自動跳轉等待中：結果出來再決定 */
     kind = KINDS[k] ? k : 'ability';
     if (pending && !msg) {
       pending.kind = kind;
@@ -284,5 +315,5 @@ export function initGate({ openSheet, closeSheet, startQuiz }) {
   onMute(paintSnd);
   paintSnd(isMuted());
 
-  return { open, go, hold, render, paintWho, switchAccount, pending: () => (pending ? pending.kind : '') };
+  return { open, jump, go, hold, render, paintWho, switchAccount, pending: () => (pending ? pending.kind : '') };
 }

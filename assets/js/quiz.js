@@ -15,16 +15,16 @@
      能力健檢＝七軸金線長成雷達、落定後以 FLIP 平移成結果頁的雷達；職涯定位＝六枚角色印記繞錶圈轉動、收攏、金印落定、結果頁分段浮上
      點畫面／Enter／空白鍵略過（前 220ms 不受理）；Esc 照常關閉測驗；減少動態改為「結果出爐」0.6s 淡入淡出；規格見 mockup_v13/reveal/motion.md
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝rv* 子音軌（同一個音訊時鐘讀數一次排程）；事件：每題作答進度、完成與結果、quiz.reveal／quiz.reveal_skip（view） */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261024e';
-import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261024e';
-import { track } from './track.js?v=20261024e';
-import { submitResult, onResults, session } from './auth.js?v=20261024e';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261029a';
+import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261029a';
+import { track } from './track.js?v=20261029a';
+import { submitResult, onResults, session } from './auth.js?v=20261029a';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261024e';
-import { NX, OA_URL, bridge, shareUrl } from './nextstep.js?v=20261024e';
-import { mark, SUB } from './marks.js?v=20261024e';
+} from './quizdata.js?v=20261029a';
+import { NX, OA_URL, bridge, shareUrl } from './nextstep.js?v=20261029a';
+import { mark, SUB } from './marks.js?v=20261029a';
 
 export { OA_URL };
 export const STORE_KEY = 'grace.quiz.v1';

@@ -7,12 +7,13 @@
    - App 內建瀏覽器（Instagram、Threads、Facebook、LINE 等 WebView）：不在此登入，先換到真正的瀏覽器。
      外部開啟（帶 ?go=login，重新開啟時直接到登入卡）：LINE 內建 openExternalBrowser=1、Android intent:// 交給 Chrome，
      iOS 只能靠 App 右上角選單（x-safari-https:// 實機不一定被放行，已移除）；顯示說明時以 markLoginUrl 把目前網址改成登入網址，選單開啟的網址即直接到登入卡
+     撕票當下（同一個點擊）Android 的 IG／FB／Threads 與 LINE 內建先自動跳轉（autoJumpMode／autoJumpUrl，xj=1 防迴圈）
    - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state'
    - LINE 返回的換 token（auth.line）實測要 3–10 秒（Apps Script 冷啟動）：pendingLine() 先同步讀出所選測驗種類，
      讓 gate 立刻顯示「登入中」的儀式卡，不讓訪客對著首頁等；auth.line／auth.google 逾時放寬到 25 秒 */
-import { config } from './config.js?v=20261024e';
-import { post } from './api.js?v=20261024e';
-import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261024e';
+import { config } from './config.js?v=20261029a';
+import { post } from './api.js?v=20261029a';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261029a';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';
@@ -94,7 +95,7 @@ export function externalMode() {
 /** 換到外部瀏覽器後要開的網址：保留目前路徑與參數，加 go=login（重新開啟時直接到登入卡；k＝測驗種類） */
 export function loginUrl(kind = 'ability') {
   const u = new URL(pageUrl());
-  ['go', 'k', 'openExternalBrowser', 'auth', 'code', 'state', 'error', 'error_description', 'friendship_status_changed'].forEach((k) => u.searchParams.delete(k));
+  ['go', 'k', 'openExternalBrowser', JUMP, 'auth', 'code', 'state', 'error', 'error_description', 'friendship_status_changed'].forEach((k) => u.searchParams.delete(k));
   u.searchParams.set('go', 'login');
   if (kind === 'career') u.searchParams.set('k', 'career');
   return u.toString();
@@ -114,20 +115,49 @@ export function externalUrl(mode = externalMode(), kind = 'ability') {
   if (mode === 'intent') return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
   return '';
 }
+/* ---------- 撕票當下自動換到手機瀏覽器 ----------
+   Android 的 IG／Facebook／Threads → intent:// 交給 Chrome；LINE 內建（iOS、Android）→ openExternalBrowser=1。
+   目標網址為登入網址（go=login）再加 xj=1：從自動跳轉開到的頁面帶 xj=1，即使仍在 App 內建瀏覽器也不再自動跳（避免迴圈）。
+   intent:// 的 # 之後是 Intent 參數，頁面錨點只能放在 browser_fallback_url（沒有 Chrome 時使用）與 LINE 網址 */
+const JUMP = 'xj';
+/** 網址參數帶 xj=1（剛從自動跳轉開到這頁） */
+export const arrivedByJump = (search = '') => { try { return new URLSearchParams(search).get(JUMP) === '1'; } catch (e) { return false; } };
+const ARRIVED = arrivedByJump(typeof location !== 'undefined' ? location.search : '');
+/** 依 UA 判斷撕票時的自動跳轉方式：'intent'、'line' 或 ''（不跳：iPhone 的 IG／FB／Threads、一般瀏覽器、桌機、剛跳轉過來） */
+export function autoJumpModeOf(ua = '', { jumped = false } = {}) {
+  if (jumped) return '';
+  const app = inAppOf(ua), os = devInfo(ua).os;
+  if (app === 'LINE') return os === 'iOS' || os === 'Android' ? 'line' : '';
+  if (os === 'Android' && (app === 'IG' || app === 'Facebook' || app === 'Threads')) return 'intent';
+  return '';
+}
+/** 目前頁面的自動跳轉方式（預覽切換與剛跳轉過來時不跳） */
+export function autoJumpMode() {
+  if (typeof window.__pvIG === 'boolean') return '';
+  try { return autoJumpModeOf(navigator.userAgent || '', { jumped: ARRIVED }); } catch (e) { return ''; }
+}
+/** 自動跳轉網址：登入網址（保留路徑、參數，加 go=login）＋ xj=1，並保留目前錨點 */
+export function autoJumpUrl(mode, kind = 'ability') {
+  const u = new URL(loginUrl(kind)), hash = location.hash || '';
+  u.searchParams.set(JUMP, '1');
+  if (mode === 'line') { u.searchParams.set('openExternalBrowser', '1'); return u.toString() + hash; }
+  if (mode === 'intent') return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(u.toString() + hash)};end`;
+  return '';
+}
 /** 嘗試以外部瀏覽器開啟；回 { mode, os }（mode 為 '' 表示無可用方式） */
 export function openInBrowser(mode = externalMode(), kind = 'ability') {
   const href = externalUrl(mode, kind);
   if (href) location.href = href;
   return { mode: href ? mode : '', os: platform() };
 }
-/** 載入時：網址帶 go=login → 回 { kind } 並清掉 go、k、openExternalBrowser；否則 null */
+/** 載入時：網址帶 go=login → 回 { kind } 並清掉 go、k、openExternalBrowser、xj；否則 null */
 export function takeGoLogin() {
   let q;
   try { q = new URLSearchParams(location.search); } catch (e) { return null; }
   if (q.get('go') !== 'login') return null;
   const kind = q.get('k') === 'career' ? 'career' : 'ability';
   try {
-    ['go', 'k', 'openExternalBrowser'].forEach((k) => q.delete(k));
+    ['go', 'k', 'openExternalBrowser', JUMP].forEach((k) => q.delete(k));
     const qs = q.toString();
     history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
   } catch (e) { /* 忽略 */ }

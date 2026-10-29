@@ -41,6 +41,7 @@ test('流程事件：進站、撕票、登入、作答、靜音', () => {
   assert.equal(wire('auth.line.start', 'auth_start', { provider: 'line' }).n, 'login_start');
   assert.deepEqual(wire('auth.fail', 'auth', { provider: 'google', code: 'RATE_LIMIT' }), { n: 'login_fail', k: 'google', v: 'RATE_LIMIT' });
   assert.deepEqual(wire('auth.google.blocked', 'view', {}), { n: 'login_fail', k: 'google', v: 'webview' });
+  assert.deepEqual(wire('gate.autojump', 'view', { kind: 'career', via: 'intent' }), { n: 'view', k: 'gate.autojump', v: 'career' });   /* 撕票自動跳轉 */
   assert.deepEqual(wire('quiz.answer', 'answer', { kind: 'career', q: 7, n: 12, k: 2, done: 7 }), { n: 'quiz_q', k: 'career', v: '7:1' });
   assert.deepEqual(wire('quiz.answer', 'answer', { kind: 'ability', q: 14, k: 4 }), { n: 'quiz_q', k: 'ability', v: '14:3' });
   assert.deepEqual(wire('quiz.next', 'click', { kind: 'ability', q: 3 }), { n: 'quiz_nav', k: 'ability', v: 'next' });

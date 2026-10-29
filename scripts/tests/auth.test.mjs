@@ -18,7 +18,7 @@ globalThis.fetch = async () => { throw new Error('offline'); };                 
 /* 與網頁相同的版本參數匯入（模組網址不同會變成兩份模組，設定狀態不共用） */
 const V = HTML.match(/assets\/js\/v6\.js(\?v=\w+)/)[1];
 const { loadConfig, isDemo } = await import(`../../assets/js/config.js${V}`);
-const { resume, loginUrl, takeGoLogin, markLoginUrl, externalUrl, pendingLine } = await import(`../../assets/js/auth.js${V}`);
+const { resume, loginUrl, takeGoLogin, markLoginUrl, externalUrl, pendingLine, autoJumpModeOf, autoJumpUrl, arrivedByJump } = await import(`../../assets/js/auth.js${V}`);
 const embedded = HTML.match(/id="hub-config">([\s\S]*?)<\/script>/)[1];
 
 test('hub.json 讀取失敗：內嵌設定仍為正式模式', async () => {
@@ -103,4 +103,57 @@ test('外部開啟網址：不再提供 x-safari；Android intent 附 fallback�
   assert.equal(externalUrl('safari'), '');
   assert.equal(externalUrl('intent'), 'intent://grace63188.github.io/grace-IG/?go=login#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fgrace63188.github.io%2Fgrace-IG%2F%3Fgo%3Dlogin;end');
   assert.equal(externalUrl('line'), 'https://grace63188.github.io/grace-IG/?go=login&openExternalBrowser=1');
+});
+
+/* 撕票自動跳轉：UA 判斷與網址 */
+const UA = {
+  androidIG: 'Mozilla/5.0 (Linux; Android 14; SM-S918B Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.81 Mobile Safari/537.36 Instagram 352.0.0.36.92 Android (34/14; 480dpi; 1080x2340; samsung; SM-S918B; dm3q; qcom; zh_TW; 650433467)',
+  androidFB: 'Mozilla/5.0 (Linux; Android 13; Pixel 7 Build/TQ3A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.6613.127 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/482.0.0.40.109;]',
+  androidThreads: 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP2A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.70 Mobile Safari/537.36 Barcelona 352.0.0.30.109 Android',
+  androidLINE: 'Mozilla/5.0 (Linux; Android 14; SM-A546E Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.81 Mobile Safari/537.36 Line/14.16.1/IAB',
+  iosLINE: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari Line/14.16.0',
+  iosIG: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 352.0.0.24.84 (iPhone15,2; iOS 17_6; zh_TW; zh-Hant; scale=3.00; 1179x2556; 652117085)',
+  iosFB: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/482.0.0.43.109;FBBV/650000000;FBDV/iPhone15,2;FBMD/iPhone;FBSN/iOS;FBSV/17.6;FBSS/3;FBCR/;FBID/phone;FBLC/zh_TW;FBOP/5]',
+  iosThreads: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Barcelona 352.0.0.17.86',
+  desktop: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+  desktopMac: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15',
+  androidChrome: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.58 Mobile Safari/537.36',
+  iosSafari: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1',
+};
+
+test('自動跳轉方式：Android IG／FB／Threads → intent；LINE（iOS、Android）→ line；其餘不跳', () => {
+  assert.equal(autoJumpModeOf(UA.androidIG), 'intent');
+  assert.equal(autoJumpModeOf(UA.androidFB), 'intent');
+  assert.equal(autoJumpModeOf(UA.androidThreads), 'intent');
+  assert.equal(autoJumpModeOf(UA.androidLINE), 'line');
+  assert.equal(autoJumpModeOf(UA.iosLINE), 'line');
+  for (const k of ['iosIG', 'iosFB', 'iosThreads', 'desktop', 'desktopMac', 'androidChrome', 'iosSafari']) assert.equal(autoJumpModeOf(UA[k]), '', k);
+  assert.equal(autoJumpModeOf(''), '');
+});
+
+test('防迴圈：剛從自動跳轉過來（xj=1）一律不跳', () => {
+  assert.equal(arrivedByJump('?utm_source=ig&go=login&xj=1'), true);
+  assert.equal(arrivedByJump('?go=login'), false);
+  assert.equal(arrivedByJump(''), false);
+  for (const k of ['androidIG', 'androidFB', 'androidThreads', 'androidLINE', 'iosLINE']) assert.equal(autoJumpModeOf(UA[k], { jumped: true }), '', k);
+});
+
+test('自動跳轉網址：保留路徑、參數與錨點，加 go=login、xj=1；intent 交給 Chrome 並附 fallback', () => {
+  url = new URL('https://grace63188.github.io/grace-IG/?utm_source=ig&code=x#top');
+  assert.equal(autoJumpUrl('intent', 'career'),
+    'intent://grace63188.github.io/grace-IG/?utm_source=ig&go=login&k=career&xj=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='
+    + encodeURIComponent('https://grace63188.github.io/grace-IG/?utm_source=ig&go=login&k=career&xj=1#top') + ';end');
+  assert.equal(autoJumpUrl('line', 'ability'), 'https://grace63188.github.io/grace-IG/?utm_source=ig&go=login&xj=1&openExternalBrowser=1#top');
+  assert.equal(autoJumpUrl('', 'ability'), '');
+  url = new URL('https://grace63188.github.io/grace-IG/');
+  assert.equal(autoJumpUrl('line'), 'https://grace63188.github.io/grace-IG/?go=login&xj=1&openExternalBrowser=1');
+});
+
+test('跳轉後開到的頁面：go、k、openExternalBrowser、xj 都清掉，登入網址不帶 xj', () => {
+  url = new URL('https://grace63188.github.io/grace-IG/?utm_source=ig&go=login&k=career&xj=1&openExternalBrowser=1#top');
+  assert.deepEqual(takeGoLogin(), { kind: 'career' });
+  assert.equal(url.search, '?utm_source=ig');
+  assert.equal(url.hash, '#top');
+  url = new URL('https://grace63188.github.io/grace-IG/?xj=1');
+  assert.equal(loginUrl('ability'), 'https://grace63188.github.io/grace-IG/?go=login');
 });
