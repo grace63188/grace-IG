@@ -6,13 +6,14 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseRss, pickLatest, normalizeDuration, buildPodcastData, findEpisodeUrl, SHOW_URL } from '../update_podcast.mjs';
+import { parseRss, pickLatest, normalizeDuration, buildPodcastData, findEpisodeUrl, episodeNumber, SHOW_URL } from '../update_podcast.mjs';
 import { buildLiveData, DEFAULT_URL } from '../update_live.mjs';
 import { collectOccurrences, unfold, parseDateValue } from '../lib/ics.mjs';
 import { toTaipeiISO, writeJsonIfChanged } from '../lib/common.mjs';
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
 const feed = await readFile(join(FIX, 'sample_feed.xml'), 'utf8');
+const rsscom = await readFile(join(FIX, 'rsscom_feed.xml'), 'utf8');
 const ics = await readFile(join(FIX, 'sample_calendar.ics'), 'utf8');
 
 const ISO_TPE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/;
@@ -60,6 +61,52 @@ test('RSS 格式錯誤會丟出錯誤', () => {
   assert.throws(() => pickLatest([]), /找不到/);
 });
 
+// 2026.10.29：首頁停在 EP100，EP101 已上架。RSS.com 把第 2 季排在最前面，最新一集不在第一筆
+const AFTER_EP101 = new Date('2026-10-29T12:00:00Z');
+const parseWith = (extra) => parseRss(rsscom.replace('</channel>', extra + '</channel>')).items;
+
+test('RSS.com 實際排列：第 2 季排前面時仍取到 EP101（第 101 集）', () => {
+  const latest = pickLatest(parseRss(rsscom).items, AFTER_EP101);
+  assert.equal(latest.title, 'EP101.別把好的環境，活成自己的舒適圈');
+  assert.equal(episodeNumber(latest), 101);
+  assert.equal(latest.season, 1);
+  assert.equal(latest.duration, '46:20');
+});
+
+test('EP101 上架前的時間點取 EP100（不會把未來的集數提早顯示）', () => {
+  const latest = pickLatest(parseRss(rsscom).items, new Date('2026-10-29T01:45:00Z'));
+  assert.equal(episodeNumber(latest), 100);
+});
+
+test('預告（trailer）與番外（bonus）不會蓋掉正式集數', () => {
+  const items = parseWith(
+    '<item><title>第 2 季預告</title><pubDate>Fri, 30 Oct 2026 01:00:00 GMT</pubDate><itunes:episodeType>trailer</itunes:episodeType></item>' +
+    '<item><title>番外：直播花絮</title><pubDate>Fri, 30 Oct 2026 02:00:00 GMT</pubDate><itunes:episodeType>Bonus</itunes:episodeType></item>');
+  assert.equal(episodeNumber(pickLatest(items, new Date('2026-10-30T03:00:00Z'))), 101);
+  const onlyExtras = items.filter((i) => i.type !== 'full');
+  assert.equal(pickLatest(onlyExtras, new Date('2026-10-30T03:00:00Z')).title, '番外：直播花絮');
+  assert.throws(() => pickLatest(items.filter((i) => i.type === 'trailer'), new Date('2026-10-30T03:00:00Z')), /找不到/);
+});
+
+test('預約上架（pubDate 在未來）先不顯示', () => {
+  const items = parseWith('<item><title>EP102.預約中</title><pubDate>Sat, 07 Nov 2026 12:00:00 GMT</pubDate><itunes:episode>102</itunes:episode></item>');
+  assert.equal(episodeNumber(pickLatest(items, AFTER_EP101)), 101);
+  assert.equal(episodeNumber(pickLatest(items, new Date('2026-11-07T12:05:00Z'))), 102);
+});
+
+test('集數以 itunes:episode 為準，沒有標籤才從標題解析', () => {
+  assert.equal(episodeNumber({ title: 'EP99.標題寫錯', episodeTag: 101 }), 101);
+  assert.equal(episodeNumber({ title: 'EP 7 沒有標籤', episodeTag: null }), 7);
+  assert.equal(episodeNumber({ title: 'ＥＰ１０３．全形', episodeTag: null }), 103);
+  assert.equal(episodeNumber({ title: '沒有集數', episodeTag: null }), null);
+});
+
+test('同一時間上架時取集數較大者', () => {
+  const d = new Date('2026-10-29T09:57:30Z');
+  const latest = pickLatest([{ title: 'EP101', date: d, episodeTag: 101, type: 'full' }, { title: 'EP102', date: d, episodeTag: 102, type: 'full' }], AFTER_EP101);
+  assert.equal(latest.title, 'EP102');
+});
+
 /** 模擬 fetch：依網址回傳 fixture */
 function mockFetch(routes) {
   return async (url) => {
@@ -91,11 +138,13 @@ test('完整流程：以 guid 對到 Apple 單集網址', async () => {
   const data = await buildPodcastData({ fetchImpl, now: new Date('2026-10-21T00:00:00Z'), log: () => {} });
   assert.deepEqual(Object.keys(data), ['updated', 'show', 'latest']);
   assert.deepEqual(Object.keys(data.show), ['title', 'url']);
-  assert.deepEqual(Object.keys(data.latest), ['title', 'date', 'url', 'image', 'duration']);
+  assert.deepEqual(Object.keys(data.latest), ['title', 'episode', 'season', 'date', 'url', 'image', 'duration']);
   assert.equal(data.updated, '2026-10-21T08:00:00+08:00');
   assert.deepEqual(data.show, { title: '我們下課吧', url: SHOW_URL });
   assert.deepEqual(data.latest, {
     title: 'EP12 最新一集：校長的 QA 特輯',
+    episode: 12,
+    season: null,
     date: '2026-10-20T06:30:00+08:00',
     url: 'https://podcasts.apple.com/tw/podcast/x/id1659198934?i=1000000012',
     image: 'https://example.com/ep12.jpg',
@@ -272,4 +321,17 @@ test('無效 ICS 丟出錯誤；沒有未來事件時輸出空陣列', () => {
   assert.throws(() => buildLiveData('<html>', { warn: () => {} }), /ICS 格式不正確/);
   const data = buildLiveData(ics, { now: new Date('2028-01-01T00:00:00Z'), warn: () => {} });
   assert.deepEqual(data.events, []);
+});
+
+// 2026.10.29 的根因：排程一天只跑一次（台北 06:07），白天上架的新集數要等到隔天。改成每小時，並保留手動執行
+test('PODCAST 排程：每小時檢查一次，且可手動執行', async () => {
+  const yml = await readFile(join(FIX, '..', '..', '.github', 'workflows', 'podcast.yml'), 'utf8');
+  const crons = [...yml.matchAll(/cron:\s*'([^']+)'/g)].map((m) => m[1].trim().split(/\s+/));
+  assert.ok(crons.length >= 1, '找不到 cron');
+  for (const c of crons) {
+    assert.match(c[0], /^\d+$/, '分鐘欄需為固定值');
+    assert.deepEqual(c.slice(1), ['*', '*', '*', '*'], `排程需每小時執行：${c.join(' ')}`);
+  }
+  assert.match(yml, /^\s*workflow_dispatch:/m);
+  assert.match(yml, /node scripts\/update_podcast\.mjs/);
 });

@@ -91,15 +91,43 @@ export function parseRss(xml) {
       image: tagAttr(body, 'itunes:image', 'href'),
       duration: normalizeDuration(tagText(body, 'itunes:duration')),
       date: date && !Number.isNaN(date.getTime()) ? date : null,
+      episodeTag: toInt(tagText(body, 'itunes:episode')),
+      season: toInt(tagText(body, 'itunes:season')),
+      type: (tagText(body, 'itunes:episodeType') || 'full').toLowerCase(),
     });
   }
   return { channel, items };
 }
 
-export function pickLatest(items) {
-  const dated = items.filter((i) => i.date);
+const toInt = (v) => (/^\d+$/.test(String(v ?? '').trim()) ? parseInt(String(v).trim(), 10) : null);
+
+/** 集數：優先用 <itunes:episode>，沒有時才從標題的「EP101」解析 */
+export function episodeNumber(item) {
+  if (Number.isInteger(item.episodeTag)) return item.episodeTag;
+  const m = String(item.title ?? '').normalize('NFKC').match(/\bEP\s*\.?\s*(\d+)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// 允許的時鐘誤差：pubDate 在「現在」之後超過這個範圍視為預約上架，先不顯示
+const FUTURE_SLACK_MS = 10 * 60 * 1000;
+
+/**
+ * 最新一集＝已上架（pubDate 不晚於現在）的正式集數中 pubDate 最新者。
+ * - 不看 RSS 排列順序（RSS.com 會把不同季的集數排在前面）
+ * - 預告（trailer）不算；番外（bonus）只有在沒有正式集數時才採用
+ * - pubDate 相同時取集數較大者
+ */
+export function pickLatest(items, now = new Date()) {
+  const limit = now.getTime() + FUTURE_SLACK_MS;
+  const dated = items.filter((i) => i.date && i.date.getTime() <= limit && i.type !== 'trailer');
   if (!dated.length) throw new Error('RSS 中找不到任何具有效 pubDate 的集數');
-  return dated.reduce((a, b) => (b.date > a.date ? b : a));
+  const full = dated.filter((i) => i.type !== 'bonus');
+  const pool = full.length ? full : dated;
+  return pool.reduce((a, b) => {
+    const d = b.date - a.date;
+    if (d !== 0) return d > 0 ? b : a;
+    return (episodeNumber(b) ?? -1) > (episodeNumber(a) ?? -1) ? b : a;
+  });
 }
 
 const normTitle = (s) => String(s ?? '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
@@ -131,8 +159,8 @@ export async function buildPodcastData({ fetchImpl = globalThis.fetch, now = new
   // 2) RSS → 最新一集
   const rss = await fetchText(showInfo.feedUrl, { fetchImpl, label: 'RSS feed' });
   const { channel, items } = parseRss(rss);
-  const latest = pickLatest(items);
-  log(`最新一集：${latest.title}（${latest.date.toISOString()}）`);
+  const latest = pickLatest(items, now);
+  log(`最新一集：${latest.title}（第 ${episodeNumber(latest) ?? '?'} 集，${latest.date.toISOString()}）`);
 
   // 3) 單集 Apple 網址（失敗不致命，依序退回 RSS link → 節目網址）
   let episodeUrl = '';
@@ -153,6 +181,8 @@ export async function buildPodcastData({ fetchImpl = globalThis.fetch, now = new
     show: { title: showTitle, url: SHOW_URL },
     latest: {
       title: latest.title,
+      episode: episodeNumber(latest),
+      season: latest.season,
       date: toTaipeiISO(latest.date),
       url: episodeUrl || latest.link || SHOW_URL,
       image: latest.image || showImage,

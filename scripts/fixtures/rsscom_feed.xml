@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 依 2026.10.29 實際 RSS.com feed 的排列方式簡化：第 2 季（另一個校長）排在最前面，最新的 EP101 在後面 -->
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title><![CDATA[【芮力話：我們下課吧】]]></title>
+    <link>https://rss.com/podcasts/graceschool</link>
+    <lastBuildDate>Thu, 29 Oct 2026 09:57:32 GMT</lastBuildDate>
+    <itunes:image href="https://example.com/show.jpg"/>
+    <item>
+      <title><![CDATA[【另一個校長】EP5.把自己當成頭等大事]]></title>
+      <guid isPermaLink="false">g-s2e5</guid>
+      <pubDate>Sat, 22 Aug 2026 11:57:45 GMT</pubDate>
+      <itunes:episode>5</itunes:episode><itunes:season>2</itunes:season><itunes:episodeType>full</itunes:episodeType>
+    </item>
+    <item>
+      <title><![CDATA[【另一個校長】EP4.重新定義問題]]></title>
+      <guid isPermaLink="false">g-s2e4</guid>
+      <pubDate>Sat, 15 Aug 2026 08:00:00 GMT</pubDate>
+      <itunes:episode>4</itunes:episode><itunes:season>2</itunes:season><itunes:episodeType>full</itunes:episodeType>
+    </item>
+    <item>
+      <title><![CDATA[EP101.別把好的環境，活成自己的舒適圈]]></title>
+      <link>https://rss.com/podcasts/graceschool/101</link>
+      <guid isPermaLink="false">g-ep101</guid>
+      <pubDate>Thu, 29 Oct 2026 09:57:30 GMT</pubDate>
+      <itunes:episode>101</itunes:episode><itunes:season>1</itunes:season><itunes:episodeType>full</itunes:episodeType>
+      <itunes:duration>2780</itunes:duration>
+      <itunes:image href="https://example.com/ep101.jpg"/>
+    </item>
+    <item>
+      <title><![CDATA[EP100.複利的加速器]]></title>
+      <guid isPermaLink="false">g-ep100</guid>
+      <pubDate>Sat, 03 Oct 2026 12:46:13 GMT</pubDate>
+      <itunes:episode>100</itunes:episode><itunes:season>1</itunes:season><itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

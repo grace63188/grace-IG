@@ -2,8 +2,10 @@ name: 更新 PODCAST 最新一集
 
 on:
   schedule:
-    # 每天 UTC 22:07 = 台北時間 06:07（GitHub 排程可能延遲數分鐘至數十分鐘）
-    - cron: '7 22 * * *'
+    # 每小時第 17 分檢查一次（GitHub 排程可能延遲數分鐘至數十分鐘）；內容沒變不會 commit
+    # 原本每天只跑一次（台北 06:07），新集數在白天上架就要等到隔天早上才會出現在首頁
+    - cron: '17 * * * *'
+  # 手動執行：Actions → 更新 PODCAST 最新一集 → Run workflow
   workflow_dispatch:
 
 permissions:
