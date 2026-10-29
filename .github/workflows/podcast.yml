@@ -28,22 +28,5 @@ jobs:
           node-version: '20'
 
       - name: 取得最新一集並更新 data/podcast.json
-        run: node scripts/update_podcast.mjs
+        run: node scripts/diag_podcast.mjs
 
-      - name: 有變更才 commit 並 push
-        run: |
-          if [ -z "$(git status --porcelain -- data/podcast.json)" ]; then
-            echo "data/podcast.json 無變更，不 commit。"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/podcast.json
-          git commit -m "chore(data): 更新 PODCAST 最新一集"
-          for i in 1 2 3; do
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
-            echo "push 失敗，第 ${i} 次重試…"
-            sleep $((i * 5))
-          done
-          echo "::error::push 失敗（已重試 3 次）"
-          exit 1
