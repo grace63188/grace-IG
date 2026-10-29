@@ -1,14 +1,16 @@
 {
-  "updated": "2026-10-23T08:35:59+08:00",
+  "updated": "2026-10-29T20:40:59+08:00",
   "show": {
     "title": "【芮力話：我們下課吧】",
     "url": "https://podcasts.apple.com/tw/podcast/id1659198934"
   },
   "latest": {
-    "title": "EP100.複利的加速器",
-    "date": "2026-10-03T20:46:13+08:00",
-    "url": "https://podcasts.apple.com/tw/podcast/ep100-%E8%A4%87%E5%88%A9%E7%9A%84%E5%8A%A0%E9%80%9F%E5%99%A8/id1659198934?i=1000792979885&uo=4",
-    "image": "https://media.rss.com/graceschool/ep_cover_20261003_122256_7b593f33346be841e294ab1442c4ec2d.jpg",
-    "duration": "50:47"
+    "title": "EP101.別把好的環境，活成自己的舒適圈",
+    "episode": 101,
+    "season": 1,
+    "date": "2026-10-29T17:57:30+08:00",
+    "url": "https://podcasts.apple.com/tw/podcast/ep101-%E5%88%A5%E6%8A%8A%E5%A5%BD%E7%9A%84%E7%92%B0%E5%A2%83-%E6%B4%BB%E6%88%90%E8%87%AA%E5%B7%B1%E7%9A%84%E8%88%92%E9%81%A9%E5%9C%88/id1659198934?i=1000798683669&uo=4",
+    "image": "https://media.rss.com/graceschool/ep_cover_20261029_093437_d661903b532b0a380bf4e1d13eb8a367.jpg",
+    "duration": "57:05"
   }
 }
