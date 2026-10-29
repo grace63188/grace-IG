@@ -91,6 +91,20 @@ test('時間窗：結束於下個月最後一刻（台北時間），跨年與�
   assert.equal(end('2026-11-30T15:00:00Z'), '2027-01-01T00:00:00+08:00'); // 跨年
   assert.equal(end('2028-01-31T15:00:00Z'), '2028-03-01T00:00:00+08:00'); // 閏年 2 月整月
   assert.equal(end('2026-10-15T02:00:00Z'), '2026-12-01T00:00:00+08:00'); // 月中手動：本月剩餘＋下個月
+  assert.equal(end('2026-10-26T15:00:00Z'), '2026-12-01T00:00:00+08:00'); // 26 日排程（台北 23:00）→ 本月剩餘＋11 月整月
+  assert.equal(end('2026-12-26T15:00:00Z'), '2027-02-01T00:00:00+08:00'); // 26 日排程跨年 → 到 1 月底
+  assert.equal(end('2028-01-26T15:00:00Z'), '2028-03-01T00:00:00+08:00'); // 26 日排程 → 閏年 2 月整月
+});
+
+test('26 日排程：本月剩餘＋下個月整月都載入，下下個月 1 號起不載入', () => {
+  const run26 = new Date('2026-10-26T15:00:00Z'); // 台北 10/26 23:00
+  const ics = cal('SUMMARY:IG直播\r\nDTSTART;TZID=Asia/Taipei:20261002T200000\r\nDTEND;TZID=Asia/Taipei:20261002T210000\r\nRRULE:FREQ=DAILY;INTERVAL=1');
+  const got = buildLiveData(ics, { now: run26 }).events.map((e) => e.start);
+  assert.equal(got.length, 35); // 10/27–10/31（5 場）＋11 月（30 場），未超過 MAX_EVENTS
+  assert.equal(got[0], '2026-10-27T20:00:00+08:00');
+  assert.equal(got.at(-1), '2026-11-30T20:00:00+08:00');
+  const next = cal('SUMMARY:IG直播\r\nDTSTART;TZID=Asia/Taipei:20261201T000000\r\nDTEND;TZID=Asia/Taipei:20261201T010000');
+  assert.equal(buildLiveData(next, { now: run26 }).events.length, 0);
 });
 
 test('月底執行：下個月整月都載入，下下個月 1 號起不載入', () => {
