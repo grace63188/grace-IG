@@ -6,7 +6,7 @@
 
 - **網站內容**：資源平台簡化版——「現在」即時資訊＋六個入口（開始測驗、前往上課、查看活動、收看直播、追蹤動態、預約諮詢），點開為流程卡片
 - **網站網址**：`https://grace63188.github.io/grace-IG/`
-- **PODCAST 更新**：每小時讀取 Apple Podcasts 與 RSS，把最新一集（含集數）寫入 `data/podcast.json`；新集數上架後約 1 小時內出現在首頁，內容沒變不會 commit
+- **PODCAST 更新**：每天台北 06:07 讀取 Apple Podcasts 與 RSS，把最新一集（含集數）寫入 `data/podcast.json`，作為保底；新集數上架後可在後台「設定 → PODCAST → 立即更新 PODCAST」手動觸發，或在 Actions 執行「更新 PODCAST 最新一集」，內容沒變不會 commit
 - **直播更新**：每月 26 日台北 23:00 讀取 Google 日曆一次，只取標題為「IG直播」的行程，把本月剩餘＋下個月整月的場次寫入 `data/live.json`（最多 40 場）
 - **月中異動**：月中新增或改動行程時，到「Actions」手動執行一次；手動執行會載入本月剩餘＋下個月
 - **變更才提交**：資料沒變時不產生 commit；直播的 commit 訊息固定為「更新 IG直播 時間」
@@ -53,6 +53,7 @@
 - **啟用排程**：首次進入若出現啟用提示，按「I understand my workflows, go ahead and enable them」
 - **直播流程**：左側點「更新 IG直播 時間」→ 右側「Run workflow」→ 分支選 `main` →「Run workflow」
 - **PODCAST 流程**：左側點「更新 PODCAST 最新一集」→ 同樣執行一次
+- **後台觸發**：後台「設定」頁的「立即更新直播時間」「立即更新 PODCAST」按鈕會執行同一個流程，使用同一組金鑰
 - **查看結果**：綠色勾勾為成功；紅色叉叉點進去看錯誤分類
 - **確認資料**：成功後到 `data/live.json`、`data/podcast.json` 查看內容
 - **網站生效**：push 後 GitHub Pages 約 1–3 分鐘重新部署

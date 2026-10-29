@@ -323,15 +323,13 @@ test('無效 ICS 丟出錯誤；沒有未來事件時輸出空陣列', () => {
   assert.deepEqual(data.events, []);
 });
 
-// 2026.10.29 的根因：排程一天只跑一次（台北 06:07），白天上架的新集數要等到隔天。改成每小時，並保留手動執行
-test('PODCAST 排程：每小時檢查一次，且可手動執行', async () => {
+// 2026.10.29：排程改回每天一次（台北 06:07）作為保底，新集數上架改由後台手動觸發（workflow_dispatch）
+test('PODCAST 排程：每天台北 06:07 一次，且可手動執行', async () => {
   const yml = await readFile(join(FIX, '..', '..', '.github', 'workflows', 'podcast.yml'), 'utf8');
   const crons = [...yml.matchAll(/cron:\s*'([^']+)'/g)].map((m) => m[1].trim().split(/\s+/));
   assert.ok(crons.length >= 1, '找不到 cron');
-  for (const c of crons) {
-    assert.match(c[0], /^\d+$/, '分鐘欄需為固定值');
-    assert.deepEqual(c.slice(1), ['*', '*', '*', '*'], `排程需每小時執行：${c.join(' ')}`);
-  }
+  assert.equal(crons.length, 1, '只能有一個排程');
+  assert.deepEqual(crons[0], ['7', '22', '*', '*', '*'], `排程需為每天 UTC 22:07（台北 06:07）：${crons[0].join(' ')}`);
   assert.match(yml, /^\s*workflow_dispatch:/m);
   assert.match(yml, /node scripts\/update_podcast\.mjs/);
 });
