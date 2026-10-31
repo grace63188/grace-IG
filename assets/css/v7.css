@@ -700,3 +700,8 @@
   .socket .start{width:106px;height:106px;font-size:17px}
   .qs-status{min-height:36px;margin-top:4px}
 }
+
+/* 結果送出狀態（quiz.js .r-sync） */
+.quiz .r-sync { margin: 12px 0 0; font-size: 13px; line-height: 1.6; opacity: .78; }
+.quiz .r-sync[data-st="retry"], .quiz .r-sync[data-st="failed"] { opacity: 1; color: #b4542c; }
+.quiz .r-sync .txt-link { margin-left: 6px; }
