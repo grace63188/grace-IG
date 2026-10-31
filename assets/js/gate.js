@@ -13,11 +13,11 @@
      才顯示原本的 App 內建瀏覽器卡片（手動鈕不變）；本頁跳轉失敗過一次或網址帶 xj=1（剛跳轉過來）即不再自動跳。iPhone 的 IG／FB／Threads 不跳
    - 已登入回訪：撕票後直接進準備頁
    - 「加入 @52grace」移到測驗結果頁（LINE 登入者，見 quiz.js）；切換帳號在頂部頭像 chip 選單 */
-import { $, $$, esc } from './core.js?v=20261029a';
-import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl, autoJumpMode, autoJumpUrl } from './auth.js?v=20261029a';
-import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261029a';
-import { track } from './track.js?v=20261029a';
-import { OA_URL } from './quiz.js?v=20261029a';
+import { $, $$, esc } from './core.js?v=20261031a';
+import { session, login, logout, onAuth, initial, isInApp, inAppName, platform, externalMode, externalUrl, openInBrowser, markLoginUrl, autoJumpMode, autoJumpUrl } from './auth.js?v=20261031a';
+import { sfx, isMuted, setMuted, onMute } from './sound.js?v=20261031a';
+import { track } from './track.js?v=20261031a';
+import { OA_URL } from './quiz.js?v=20261031a';
 
 export const RITE_MAIN = '接下來所有作答都沒有標準答案，請誠實作答！';
 export const RITE_SUB = '選最像平常的妳就好';

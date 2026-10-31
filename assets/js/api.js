@@ -2,7 +2,7 @@
    - 全部 POST 到 gas，Content-Type: text/plain;charset=utf-8（避免 CORS 預檢），redirect: follow，不帶 cookie
    - body：{ op, did, vt?, ts, data }；回應 {ok:true,data} ／ {ok:false,error:{code,msg}}
    - 本檔是前台唯一知道 op 與欄位名稱的地方 */
-import { config } from './config.js?v=20261029a';
+import { config } from './config.js?v=20261031a';
 
 let ident = () => ({ did: '', vt: '' });
 /** 由 track.js（did）與 auth.js（vt）提供目前身分 */
@@ -21,7 +21,8 @@ export class ApiError extends Error {
 }
 
 /** 呼叫資料中心；成功回 data，失敗丟 ApiError（code：BAD_REQUEST／RATE_LIMIT／UNAUTHORIZED／EXPIRED／PROVIDER／LOCKED／SERVER／NETWORK／NO_GAS） */
-export async function post(op, data, { timeout = 12000, vt } = {}) {
+/** keepalive：頁面關閉／切走時瀏覽器仍把請求送完（body 需 < 64KB；quiz.result 約 1KB） */
+export async function post(op, data, { timeout = 12000, vt, keepalive = false } = {}) {
   const url = config().gas;
   if (!url) throw new ApiError('NO_GAS');
   const ctl = typeof AbortController === 'function' ? new AbortController() : null;
@@ -29,7 +30,7 @@ export async function post(op, data, { timeout = 12000, vt } = {}) {
   let r;
   try {
     r = await fetch(url, {
-      method: 'POST', mode: 'cors', redirect: 'follow', credentials: 'omit',
+      method: 'POST', mode: 'cors', redirect: 'follow', credentials: 'omit', keepalive,
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(envelope(op, data, { vt })),
       signal: ctl ? ctl.signal : undefined,

@@ -11,9 +11,9 @@
    - LINE 返回時先確認為正式模式（非示範）才清除 state 與網址參數；state 遺失或逾時（多半是換了瀏覽器）回 error 'state'
    - LINE 返回的換 token（auth.line）實測要 3–10 秒（Apps Script 冷啟動）：pendingLine() 先同步讀出所選測驗種類，
      讓 gate 立刻顯示「登入中」的儀式卡，不讓訪客對著首頁等；auth.line／auth.google 逾時放寬到 25 秒 */
-import { config } from './config.js?v=20261029a';
-import { post } from './api.js?v=20261029a';
-import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261029a';
+import { config } from './config.js?v=20261031a';
+import { post, beacon } from './api.js?v=20261031a';
+import { devInfo, setTokenSource, inAppOf } from './track.js?v=20261031a';
 
 export const VT_KEY = 'gh.vt';
 export const PERSON_KEY = 'gh.person';
@@ -263,34 +263,86 @@ export async function resume() {
   const s = session();
   if (s && !s.demo && !cfg.demo) {
     try { save(await post('visitor.me', { fp: sessionFp() }), s.src); }
-    catch (x) { if (x.code === 'EXPIRED' || x.code === 'UNAUTHORIZED') logout(); }
+    catch (x) {
+      if (x.code === 'EXPIRED' || x.code === 'UNAUTHORIZED') logout();
+      flushPending();                                                     /* 續期失敗也要補送未送達的結果（舊版只在續期成功時補送） */
+    }
   } else if (s && s.demo && !cfg.demo) logout();                         /* 正式上線後清掉示範帳號 */
   else flushPending();
   return null;
 }
 
-/* ---------- 測驗結果 quiz.result ---------- */
-function readPending() { try { const v = JSON.parse(ls.get(PENDING_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
-let flushing = false;
+/* ---------- 測驗結果 quiz.result ----------
+   - 完成測驗：先存 gh.pending（本機佇列，最多 10 筆；每筆帶本機 rid 供佇列比對，送出時不帶 rid），再立即送出（keepalive）
+   - 失敗：本頁內 2s→5s→15s→30s→60s 重試；之後等 online、回到前景或下次載入
+   - 離開頁面（pagehide、visibilitychange→hidden）：仍未確認的結果以 sendBeacon 補送一次（仍留在佇列，下次載入再確認）
+     → 資料中心需以（did、kind、at）去重，同一份結果重送不新增第二列
+   - 只移除「這一輪確認送達」的項目：送出期間新加入的結果不會被覆寫掉（舊版整個覆寫，會吃掉新結果）
+   - 送出狀態：onResultState(f) → f(rid, 'sending'｜'sent'｜'retry'｜'failed')，結果頁據此顯示「已送出／重新送出中」 */
+const RETRY = [2000, 5000, 15000, 30000, 60000];
+const ridOf = () => { try { return crypto.randomUUID(); } catch (e) { return 'r_' + Date.now().toString(36) + rand(8); } };
+const wireOf = (item) => { const o = Object.assign({}, item); delete o.rid; delete o.bc; return o; };
+function readPending() { try { const v = JSON.parse(ls.get(PENDING_KEY) || '[]'); return Array.isArray(v) ? v.filter((x) => x && typeof x === 'object') : []; } catch (e) { return []; } }
+function writePending(list) { if (list.length) ls.set(PENDING_KEY, JSON.stringify(list.slice(-10))); else ls.del(PENDING_KEY); }
+const resultSubs = new Set();
+const states = {};
+/** 訂閱送出狀態；回傳取消函式 */
+export const onResultState = (f) => { resultSubs.add(f); return () => resultSubs.delete(f); };
+/** 目前狀態（結果頁晚於送出才畫出時使用） */
+export const resultState = (rid) => states[rid] || '';
+function setState(rid, st) { states[rid] = st; resultSubs.forEach((f) => { try { f(rid, st); } catch (e) { /* 忽略 */ } }); }
+const blocked = () => { const s = session(); return (s && s.demo) || config().demo; };
+
+let flushing = false, again = false, retryT = 0, tries = 0;
 async function flushPending() {
-  const s = session();
-  if (flushing || (s && s.demo) || config().demo) return;          /* 未登入也送（不帶 vt，資料中心以 did 存，登入後補 pid） */
-  const list = readPending();
+  if (blocked()) return;                                         /* 未登入也送（不帶 vt，資料中心以 did 存，登入後補 pid） */
+  if (flushing) { again = true; return; }                        /* 送出中又有新結果：這輪結束後再跑一次 */
+  let list = readPending();
   if (!list.length) return;
-  flushing = true;
-  const left = [];
-  for (const item of list) {
-    try { await post('quiz.result', item); }
-    catch (e) { if (e.code !== 'BAD_REQUEST') left.push(item); }
+  if (list.some((x) => !x.rid)) { list = list.map((x) => (x.rid ? x : Object.assign({ rid: ridOf() }, x))); writePending(list); }   /* 舊版佇列補 rid */
+  flushing = true; clearTimeout(retryT); retryT = 0;
+  const done = new Set();
+  let failed = false;
+  try {
+    for (const item of list) {
+      setState(item.rid, 'sending');
+      try { await post('quiz.result', wireOf(item), { keepalive: true, timeout: 20000 }); done.add(item.rid); setState(item.rid, 'sent'); }
+      catch (e) {
+        if (e.code === 'BAD_REQUEST') { done.add(item.rid); setState(item.rid, 'failed'); }   /* 永遠不會被接受：移出佇列 */
+        else { failed = true; setState(item.rid, 'retry'); }
+      }
+    }
+  } finally {
+    writePending(readPending().filter((x) => !done.has(x.rid)));
+    flushing = false;
   }
-  ls.set(PENDING_KEY, JSON.stringify(left.slice(-10)));
-  flushing = false;
+  if (again) { again = false; return flushPending(); }
+  if (!failed) { tries = 0; return; }
+  if (tries < RETRY.length) { retryT = setTimeout(flushPending, RETRY[tries]); tries++; }
 }
-/** 完成測驗：立即送出（登入中帶 vt；未登入不帶 vt，以裝置存）；失敗（離線、未授權）保留，下次載入時補送。示範模式不送 */
+/** 立即重試（結果頁「重新送出」按鈕、online 事件） */
+export function retryResults() { tries = 0; clearTimeout(retryT); retryT = 0; return flushPending(); }
+
+/** 離開頁面：sendBeacon 補送仍未確認的結果（每筆只補一次；仍留在佇列，下次載入以一般請求確認） */
+function beaconPending() {
+  if (blocked()) return;
+  const list = readPending();
+  let touched = false;
+  list.forEach((item) => { if (!item.bc && beacon('quiz.result', wireOf(item))) { item.bc = Date.now(); touched = true; } });
+  if (touched) writePending(list);
+}
+if (typeof addEventListener === 'function' && typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  addEventListener('pagehide', beaconPending);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') beaconPending(); else if (readPending().length) retryResults(); });
+  addEventListener('online', () => { retryResults(); });
+}
+
+/** 完成測驗：先存本機佇列再送出（登入中帶 vt；未登入不帶 vt，以裝置存）；回傳 rid（示範模式回 ''、不送） */
 export function submitResult(payload) {
-  if (config().demo) return false;
-  const list = readPending(); list.push(payload);
-  ls.set(PENDING_KEY, JSON.stringify(list.slice(-10)));
-  flushPending();
-  return true;
+  if (config().demo) return '';
+  const item = Object.assign({}, payload, { rid: ridOf() });
+  const list = readPending(); list.push(item); writePending(list);
+  setState(item.rid, 'sending');
+  retryResults();
+  return item.rid;
 }

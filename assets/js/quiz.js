@@ -15,16 +15,16 @@
      能力健檢＝七軸金線長成雷達、落定後以 FLIP 平移成結果頁的雷達；職涯定位＝六枚角色印記繞錶圈轉動、收攏、金印落定、結果頁分段浮上
      點畫面／Enter／空白鍵略過（前 220ms 不受理）；Esc 照常關閉測驗；減少動態改為「結果出爐」0.6s 淡入淡出；規格見 mockup_v13/reveal/motion.md
    - 音效：選答案＝珍珠落座、翻題＝紙頁翻動、揭曉＝rv* 子音軌（同一個音訊時鐘讀數一次排程）；事件：每題作答進度、完成與結果、quiz.reveal／quiz.reveal_skip（view） */
-import { $, $$, reduced, setInert, esc } from './core.js?v=20261029a';
-import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261029a';
-import { track } from './track.js?v=20261029a';
-import { submitResult, onResults, session } from './auth.js?v=20261029a';
+import { $, $$, reduced, setInert, esc } from './core.js?v=20261031a';
+import { sfx, clock, hushCd, hushRv, buzzOf, vibrate, RV_HZ, RV_SPIN_HZ, RV_LAND_HZ } from './sound.js?v=20261031a';
+import { track } from './track.js?v=20261031a';
+import { submitResult, onResults, session, onResultState, resultState, retryResults } from './auth.js?v=20261031a';
 import {
   ABILITIES, ABILITY_QUESTIONS, ABILITY_TEXT, scoreAbility,
   ROLES, ROLE_CODE, ROLE_TEXT, CAREER_QUESTIONS, scoreCareer,
-} from './quizdata.js?v=20261029a';
-import { NX, OA_URL, bridge, shareUrl } from './nextstep.js?v=20261029a';
-import { mark, SUB } from './marks.js?v=20261029a';
+} from './quizdata.js?v=20261031a';
+import { NX, OA_URL, bridge, shareUrl } from './nextstep.js?v=20261031a';
+import { mark, SUB } from './marks.js?v=20261031a';
 
 export { OA_URL };
 export const STORE_KEY = 'grace.quiz.v1';
@@ -382,6 +382,25 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
 
   const nameHtml = (s) => [...s].map((ch, i) => `<span style="--i:${i}">${esc(ch)}</span>`).join('');
 
+  /* 結果送出狀態（role=status）：送出中／已送出／網路不穩自動重送＋「立即重送」／送出失敗 */
+  let syncRid = '';
+  const SYNC = {
+    sending: '結果上傳中…',
+    sent: '結果已送到學院 ✓',
+    retry: '網路不穩，結果已先存在這台裝置，會自動重新送出',
+    failed: '結果沒有送出成功，請截圖結果卡傳給官方 LINE',
+  };
+  function syncInner() {
+    const st = syncRid ? resultState(syncRid) : '';
+    if (!st) return '';
+    return esc(SYNC[st] || '') + (st === 'retry' ? ' <button class="txt-link" type="button" data-act="resend" data-ev="quiz.resend">立即重送</button>' : '');
+  }
+  const syncHtml = () => (syncRid ? `<p class="r-sync" data-sync role="status" aria-live="polite">${syncInner()}</p>` : '');
+  onResultState((rid) => {
+    if (rid !== syncRid) return;
+    $$('[data-sync]', box).forEach((el) => { el.innerHTML = syncInner(); el.dataset.st = resultState(rid); });
+  });
+
   function resultHtml(r) {
     if (kind === 'ability') {
       const label = r.allSame ? '七項能力分布圖：各項能力發展平均' : `七項能力分布圖：最強是${r.top}，最需補強是${r.low}`;
@@ -397,7 +416,7 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
         <section class="r-sec"><h4><i class="tag" aria-hidden="true"></i>最需補強・${esc(r.low)}</h4><p>${esc(ABILITY_TEXT[r.low].weak)}</p></section>`}
         ${cardHtml()}${endingHtml(r)}
         <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again" data-ev-meta='{"kind":"${kind}"}'><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
-        <p class="r-note">${NOTE}</p></div>
+        ${syncHtml()}<p class="r-note">${NOTE}</p></div>
         </div>
       </div>`;
     }
@@ -417,7 +436,7 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
       <section class="r-sec r-second"><h4>副角色・${esc(r.secondary)}</h4><p>${esc(S2.desc)}</p></section>
       ${cardHtml()}${endingHtml(r)}
       <div class="r-foot"><button class="cta cta-sub gl gl-clear" type="button" data-act="again" data-ev="quiz.again" data-ev-meta='{"kind":"${kind}"}'><span>重新測驗</span><span class="go"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-redo"/></svg></span></button>${addHtml()}${switchHtml()}
-      <p class="r-note">${NOTE}</p></div>
+      ${syncHtml()}<p class="r-note">${NOTE}</p></div>
       </div>
     </div>`;
   }
@@ -623,8 +642,8 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
     track('quiz.complete', 'complete', kind === 'ability'
       ? { kind, result: r.stage.name, top: r.allSame ? '' : r.top, low: r.allSame ? '' : r.low, total: r.total }
       : { kind, result: r.primary, secondary: r.secondary });
-    /* 契約 quiz.result：登入中送出（背景，不等回應）；資料中心會自動補 quiz_done 事件 */
-    submitResult(kind === 'ability'
+    /* 契約 quiz.result：先存本機佇列再送出（背景、keepalive、自動重試、離開頁面時 sendBeacon 補送）；資料中心會自動補 quiz_done 事件 */
+    syncRid = submitResult(kind === 'ability'
       ? { kind, at: saved.at, answers: s.answers.slice(), total: r.total, stage: r.stage.name, top: r.allSame ? '' : r.top, low: r.allSame ? '' : r.low, scores: r.scores }
       : { kind, at: saved.at, answers: s.answers.slice(), primary: r.primary, secondary: r.secondary, counts: r.counts });
     state[kind] = null;                                   /* 完成後清掉作答，下次從頭開始 */
@@ -1130,6 +1149,7 @@ export function initQuiz({ onOpen, onSwitch } = {}) {
     if (act === 'next') { track('quiz.next', 'click', { kind, q: idx + 1 }); return next(); }
     if (act === 'again') { state[kind] = null; box.classList.remove('done'); return showReady(1, 'again'); }
     if (act === 'save') return save(b);
+    if (act === 'resend') { retryResults(); return; }
     if (act === 'go') { const d = NEXT_DEST[b.dataset.dest]; if (!d) return; close(); if (onOpen) setTimeout(() => onOpen(d[0], d[1]), 60); return; }
     if (act === 'share') return openExt(b.dataset.href || OA_URL);
     if (act === 'switch') { const k = kind; close(); if (onSwitch) setTimeout(() => onSwitch(k), 60); }
